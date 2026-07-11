@@ -8,7 +8,7 @@ import {
   Activity, Briefcase,
   ChevronRight, ChevronDown,
   ClipboardCheck, BarChart3, Sparkles, BookOpen,
-  Zap, Building2,
+  Zap, Building2, Server,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { authApi, notificationsApi, bidsApi } from '@/api'
@@ -16,6 +16,7 @@ import { silentRefresh, tokenMsRemaining } from '@/api/client'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import QuickJournalModal from '@/components/QuickJournalModal'
+import ServiceManualModal from '@/components/ServiceManualModal'
 
 /* ───────────────────────────────────────────────────────────
    NAV 구조 — 낙찰률 극대화 중심 10 핵심 항목
@@ -160,6 +161,7 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [quickJournalOpen, setQuickJournalOpen] = useState(false)
+  const [serviceManualOpen, setServiceManualOpen] = useState(false)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
     () => Object.fromEntries(ALL_GROUP_KEYS.map(k => {
       const group = NAV_GROUPS.find(g => g.label === k)
@@ -257,27 +259,45 @@ export default function AppLayout() {
           )}
         </div>
 
-        {/* ── 사용자 매뉴얼 버튼 ── */}
+        {/* ── 사용자 매뉴얼 / 서비스 매뉴얼 버튼 ── */}
         <div className={cn(
           'border-b border-white/[0.06]',
-          collapsed ? 'flex justify-center py-1.5' : 'px-2 py-1.5',
+          collapsed ? 'flex flex-col items-center gap-0.5 py-1.5' : 'px-2 py-1.5 space-y-0.5',
         )}>
           {collapsed ? (
-            <button
-              onClick={openManual}
-              title="사용자 매뉴얼"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 hover:bg-white/[0.08] hover:text-white transition-colors"
-            >
-              <BookOpen className="h-4 w-4" />
-            </button>
+            <>
+              <button
+                onClick={openManual}
+                title="사용자 매뉴얼"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 hover:bg-white/[0.08] hover:text-white transition-colors"
+              >
+                <BookOpen className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setServiceManualOpen(true)}
+                title="서비스 매뉴얼"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 hover:bg-white/[0.08] hover:text-white transition-colors"
+              >
+                <Server className="h-4 w-4" />
+              </button>
+            </>
           ) : (
-            <button
-              onClick={openManual}
-              className="w-full flex items-center gap-2.5 h-8 px-3 rounded-lg text-slate-200 hover:bg-white/[0.08] hover:text-white transition-colors"
-            >
-              <BookOpen className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-              <span className="text-[12.5px]">사용자 매뉴얼</span>
-            </button>
+            <>
+              <button
+                onClick={openManual}
+                className="w-full flex items-center gap-2.5 h-8 px-3 rounded-lg text-slate-200 hover:bg-white/[0.08] hover:text-white transition-colors"
+              >
+                <BookOpen className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                <span className="text-[12.5px]">사용자 매뉴얼</span>
+              </button>
+              <button
+                onClick={() => setServiceManualOpen(true)}
+                className="w-full flex items-center gap-2.5 h-8 px-3 rounded-lg text-slate-200 hover:bg-white/[0.08] hover:text-white transition-colors"
+              >
+                <Server className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                <span className="text-[12.5px]">서비스 매뉴얼</span>
+              </button>
+            </>
           )}
         </div>
 
@@ -495,6 +515,11 @@ export default function AppLayout() {
       <QuickJournalModal
         open={quickJournalOpen}
         onClose={() => setQuickJournalOpen(false)}
+      />
+
+      <ServiceManualModal
+        open={serviceManualOpen}
+        onClose={() => setServiceManualOpen(false)}
       />
     </div>
   )
