@@ -457,7 +457,7 @@ function TabStrategy({ bidId, bid, active }: { bidId: number; bid: BidDetail; ac
   const strategyMeta: Record<string, { label: string; color: string; accent: string; iconColor: string }> = {
     balanced:     { label: '균형형',   color: 'border-blue-200 bg-blue-50/50',    accent: 'bg-blue-500',    iconColor: 'text-blue-600' },
     aggressive:   { label: '공격형',   color: 'border-orange-200 bg-orange-50/50', accent: 'bg-orange-500', iconColor: 'text-orange-600' },
-    conservative: { label: '보수형',   color: 'border-emerald-200 bg-emerald-50/50', accent: 'bg-emerald-500', iconColor: 'text-emerald-600' },
+    conservative: { label: '안정형',   color: 'border-emerald-200 bg-emerald-50/50', accent: 'bg-emerald-500', iconColor: 'text-emerald-600' },
     floor_safe:   { label: '하한안전', color: 'border-purple-200 bg-purple-50/50',  accent: 'bg-purple-500',  iconColor: 'text-purple-600' },
   }
 
@@ -480,6 +480,20 @@ function TabStrategy({ bidId, bid, active }: { bidId: number; bid: BidDetail; ac
 
   return (
     <div className="space-y-4">
+      {/* ── 안내: 최종 투찰은 AI 투찰결정 페이지 사용 ── */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 flex items-center gap-3 text-xs">
+        <Target className="h-4 w-4 text-blue-600 shrink-0" />
+        <span className="text-blue-700 flex-1">
+          이 전략은 <strong>빠른 참고용</strong>입니다. 실제 투찰 전 <strong>Monte Carlo 30,000회 정밀분석</strong>을 확인하세요.
+        </span>
+        <Link
+          to={`/decision?bid=${bidId}`}
+          className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+        >
+          AI 투찰결정 →
+        </Link>
+      </div>
+
       {floorBreached && (
         <div className="flex items-start gap-3 rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3.5 text-sm text-red-700">
           <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-red-500" />

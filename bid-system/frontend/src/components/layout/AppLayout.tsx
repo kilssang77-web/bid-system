@@ -259,48 +259,6 @@ export default function AppLayout() {
           )}
         </div>
 
-        {/* ── 사용자 매뉴얼 / 서비스 매뉴얼 버튼 ── */}
-        <div className={cn(
-          'border-b border-white/[0.06]',
-          collapsed ? 'flex flex-col items-center gap-0.5 py-1.5' : 'px-2 py-1.5 space-y-0.5',
-        )}>
-          {collapsed ? (
-            <>
-              <button
-                onClick={openManual}
-                title="사용자 매뉴얼"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 hover:bg-white/[0.08] hover:text-white transition-colors"
-              >
-                <BookOpen className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setServiceManualOpen(true)}
-                title="서비스 매뉴얼"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 hover:bg-white/[0.08] hover:text-white transition-colors"
-              >
-                <Server className="h-4 w-4" />
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={openManual}
-                className="w-full flex items-center gap-2.5 h-8 px-3 rounded-lg text-slate-200 hover:bg-white/[0.08] hover:text-white transition-colors"
-              >
-                <BookOpen className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                <span className="text-[12.5px]">사용자 매뉴얼</span>
-              </button>
-              <button
-                onClick={() => setServiceManualOpen(true)}
-                className="w-full flex items-center gap-2.5 h-8 px-3 rounded-lg text-slate-200 hover:bg-white/[0.08] hover:text-white transition-colors"
-              >
-                <Server className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                <span className="text-[12.5px]">서비스 매뉴얼</span>
-              </button>
-            </>
-          )}
-        </div>
-
         {/* ── 네비게이션 영역 ── */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2">
 
@@ -374,6 +332,20 @@ export default function AppLayout() {
           {collapsed ? (
             <div className="flex flex-col items-center gap-1 py-2 px-2">
               <button
+                onClick={openManual}
+                title="사용자 매뉴얼"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-white/[0.06] hover:text-slate-200 transition-colors"
+              >
+                <BookOpen className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setServiceManualOpen(true)}
+                title="서비스 매뉴얼"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-white/[0.06] hover:text-slate-200 transition-colors"
+              >
+                <Server className="h-4 w-4" />
+              </button>
+              <button
                 onClick={() => navigate('/notifications')}
                 title="알림"
                 className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-white/[0.06] hover:text-slate-200 transition-colors"
@@ -395,6 +367,20 @@ export default function AppLayout() {
             </div>
           ) : (
             <div className="p-3 space-y-1">
+              <button
+                onClick={openManual}
+                className="w-full flex items-center gap-3 h-9 px-3 rounded-lg text-slate-300 hover:bg-white/[0.06] hover:text-white transition-colors"
+              >
+                <BookOpen className="h-4 w-4 text-blue-400 shrink-0" />
+                <span className="text-[13px] leading-none">사용자 매뉴얼</span>
+              </button>
+              <button
+                onClick={() => setServiceManualOpen(true)}
+                className="w-full flex items-center gap-3 h-9 px-3 rounded-lg text-slate-300 hover:bg-white/[0.06] hover:text-white transition-colors"
+              >
+                <Server className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span className="text-[13px] leading-none">서비스 매뉴얼</span>
+              </button>
               <button
                 onClick={() => navigate('/notifications')}
                 className="w-full flex items-center gap-3 h-9 px-3 rounded-lg text-slate-300 hover:bg-white/[0.06] hover:text-white transition-colors group"

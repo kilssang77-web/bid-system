@@ -37,7 +37,7 @@ function StrategyBadge({ s }: { s: string | null }) {
     conservative:'bg-emerald-50 text-emerald-600',
     custom:      'bg-purple-50 text-purple-600',
   }
-  const labels: Record<string, string> = { aggressive: '공격형', balanced: '균형형', conservative: '보수형', custom: '직접입력' }
+  const labels: Record<string, string> = { aggressive: '공격형', balanced: '균형형', conservative: '안정형', custom: '직접입력' }
   return <span className={cn('text-xs px-1.5 py-0.5 rounded font-medium', cfg[s] || 'bg-gray-50 text-gray-600')}>{labels[s] || s}</span>
 }
 

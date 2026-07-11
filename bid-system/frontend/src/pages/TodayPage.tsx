@@ -63,15 +63,16 @@ function RegisterExecutionModal({
         <p className="text-xs text-slate-600 font-medium mb-1 truncate">{bid.title}</p>
         <p className="text-xs text-slate-400 mb-4">{bid.agency_name} · {fmt(bid.base_amount)}원</p>
 
-        {/* AI 추천 투찰율 표시 */}
+        {/* 실증 낙찰 위치 (참고) */}
         {inlineData.recommended_rate && (
-          <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4 flex items-center justify-between">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-4 flex items-center justify-between">
             <div>
-              <p className="text-[10px] text-blue-500 font-medium">AI 추천 투찰율</p>
-              <p className="text-xl font-bold text-blue-700 font-mono">{(inlineData.recommended_rate * 100).toFixed(4)}%</p>
+              <p className="text-[10px] text-slate-500 font-medium">실증 낙찰 위치 (참고)</p>
+              <p className="text-xl font-semibold text-slate-700 font-mono">{(inlineData.recommended_rate * 100).toFixed(4)}%</p>
+              <p className="text-[9px] text-slate-400 mt-0.5">과거 낙찰자 기준 — 직접 수정 가능</p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] text-blue-500">낙찰확률</p>
+              <p className="text-[10px] text-slate-500">낙찰확률</p>
               <p className="text-base font-bold text-blue-600">{(inlineData.win_prob * 100).toFixed(1)}%</p>
             </div>
           </div>
@@ -333,19 +334,20 @@ function InlineDecisionPanel({
         <span className="ml-auto text-slate-400 font-mono">낙찰확률 {(data.win_prob * 100).toFixed(1)}%</span>
       </div>
 
-      {/* 추천 투찰가 */}
+      {/* 실증 낙찰 위치 (참고) */}
       {data.recommended_rate && (
-        <div className="bg-white border border-blue-100 rounded-lg px-3 py-2.5 flex items-center justify-between">
+        <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 flex items-center justify-between">
           <div>
-            <p className="text-[10px] text-slate-400 mb-0.5">AI 추천 투찰율</p>
-            <p className="text-lg font-bold text-blue-700 font-mono">
+            <p className="text-[10px] text-slate-400 mb-0.5">실증 낙찰 위치 (참고)</p>
+            <p className="text-lg font-semibold text-slate-600 font-mono">
               {(data.recommended_rate * 100).toFixed(4)}%
             </p>
+            <p className="text-[9px] text-slate-400 mt-0.5 leading-tight">전체분석에서 시뮬레이션 결과를 사용하세요</p>
           </div>
           {data.recommended_amount && (
             <div className="text-right">
-              <p className="text-[10px] text-slate-400 mb-0.5">추천 금액</p>
-              <p className="font-semibold text-slate-700">{fmt(data.recommended_amount)}원</p>
+              <p className="text-[10px] text-slate-400 mb-0.5">금액</p>
+              <p className="font-semibold text-slate-600">{fmt(data.recommended_amount)}원</p>
             </div>
           )}
         </div>
@@ -418,7 +420,7 @@ function InlineDecisionPanel({
               : 'bg-emerald-600 hover:bg-emerald-700 text-white',
           )}
           disabled={isPending}
-          onClick={onExecute}
+          onClick={(e) => { e.stopPropagation(); onExecute() }}
         >
           <Plus className="h-3 w-3" />
           참여 결정
@@ -427,7 +429,7 @@ function InlineDecisionPanel({
           size="sm"
           variant="outline"
           className="flex-1 h-8 text-xs gap-1 border-blue-200 text-blue-600 hover:bg-blue-50"
-          onClick={onFull}
+          onClick={(e) => { e.stopPropagation(); onFull() }}
         >
           <Crosshair className="h-3 w-3" />
           전체 분석
