@@ -130,26 +130,8 @@ export default function QuickDecisionPanel({ bidId }: Props) {
           </div>
         )}
 
-        {/* ── 추천 투찰율 & 낙찰확률 ── */}
+        {/* ── 낙찰확률 & 참고 통계 ── */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gray-50 rounded-lg p-3">
-            <div className="text-xs text-gray-400 mb-1">AI 추천 투찰율 (기초대비)</div>
-            {data.recommended_rate != null ? (
-              <>
-                <div className="text-xl font-bold font-mono text-blue-800">
-                  {(data.recommended_rate * 100).toFixed(4)}%
-                </div>
-                {data.recommended_amount != null && (
-                  <div className="text-xs text-blue-600 mt-0.5">
-                    {fmt(data.recommended_amount)}원
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-sm text-gray-400">데이터 부족</div>
-            )}
-          </div>
-
           <div className="bg-gray-50 rounded-lg p-3">
             <div className="text-xs text-gray-400 mb-1 flex items-center gap-1">
               <TrendingUp className="w-3 h-3" />
@@ -170,6 +152,27 @@ export default function QuickDecisionPanel({ bidId }: Props) {
               <Users className="w-3 h-3" />
               경쟁 {data.expected_competitors}개사 기준
             </div>
+          </div>
+
+          <div className="bg-gray-50 rounded-lg p-3">
+            <div className="text-xs text-gray-400 mb-1">실증 낙찰 위치 (참고)</div>
+            {data.recommended_rate != null ? (
+              <>
+                <div className="text-xl font-bold font-mono text-slate-600">
+                  {(data.recommended_rate * 100).toFixed(4)}%
+                </div>
+                {data.recommended_amount != null && (
+                  <div className="text-xs text-slate-400 mt-0.5">
+                    {fmt(data.recommended_amount)}원
+                  </div>
+                )}
+                <div className="text-[10px] text-slate-400 mt-1 leading-tight">
+                  과거 낙찰자 위치 기반 — 아래 시뮬레이션 결과를 우선 사용하세요
+                </div>
+              </>
+            ) : (
+              <div className="text-sm text-gray-400">데이터 부족</div>
+            )}
           </div>
         </div>
 

@@ -80,8 +80,8 @@ export default function BestRateCard({ bidId, baseAmount, period = '24M' }: Prop
     <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm">
       <CardHeader className="pb-3 border-b border-blue-100">
         <CardTitle className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-          <span className="text-lg">🎯</span>
-          AI 원클릭 최적 투찰율
+          <span className="text-lg">📊</span>
+          실증 낙찰자 위치 분석 (참고)
           <Badge className={`ml-auto text-xs ${SOURCE_COLOR[data.source]}`}>
             {SOURCE_LABEL[data.source]}
           </Badge>

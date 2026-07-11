@@ -898,26 +898,33 @@ export default function TenderDecisionPage() {
                       ? 'bg-amber-50 border-amber-400'
                       : 'bg-red-50 border-red-300',
                 )}>
+                  {/* 안내 배너 */}
+                  <div className="mb-4 bg-white/70 border border-current/20 rounded-xl px-3 py-2 flex items-center gap-2 text-xs font-semibold">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                    <span className="text-slate-700">
+                      아래 전략 중 하나를 선택하고 <strong>투찰금액(원)</strong>을 나라장터에 입력하세요
+                    </span>
+                  </div>
                   {/* 권장 투찰율 — 1개 숫자를 크게 */}
                   <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
                       <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
                         <Zap className="w-3.5 h-3.5 text-blue-500" />
-                        AI 권장 투찰율
+                        AI 권장 투찰금액
                         <span className="text-[10px] text-gray-400 ml-1">
                           ({result.mode === 'real' ? 'C(15,4) 실측' : 'Monte Carlo 30,000회'})
                         </span>
                       </p>
                       <p className={cn(
-                        'text-4xl font-black font-mono tracking-tight',
+                        'text-3xl font-black font-mono tracking-tight',
                         result.optimal.win_prob >= 0.35 ? 'text-emerald-700'
                           : result.optimal.win_prob >= 0.20 ? 'text-amber-700'
                           : 'text-red-700',
                       )}>
-                        {(result.optimal.rate * 100).toFixed(4)}%
-                      </p>
-                      <p className="text-sm text-gray-600 mt-1 font-mono">
                         {fmt(result.optimal.amount)}원
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1 font-mono">
+                        투찰율(기초대비) {(result.optimal.rate * 100).toFixed(4)}%
                       </p>
                     </div>
                     <div className="flex flex-col items-center gap-2">
@@ -1384,10 +1391,14 @@ export default function TenderDecisionPage() {
                 </div>
               )}
 
-              {/* ── AI 원클릭 최적 투찰율 (collapsible) ── */}
+              {/* ── 낙찰자 위치 분석 (참고용 — collapsible) ── */}
               {ctx && (
-                <Collapsible title="AI 원클릭 최적 투찰율" icon={Target} iconColor="text-blue-500" defaultOpen={false} badge="best-rate">
-                  <div className="pt-3">
+                <Collapsible title="낙찰자 위치 분석 (참고)" icon={Target} iconColor="text-slate-400" defaultOpen={false} badge="best-rate">
+                  <div className="pt-1">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 mb-3 flex items-start gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      <span>이 분석은 <strong>과거 실증 낙찰자 위치</strong>를 참고로 보여줍니다. 실제 투찰금액은 위의 <strong>Monte Carlo 시뮬레이션 전략 카드</strong>를 기준으로 결정하세요.</span>
+                    </div>
                     <BestRateCard bidId={ctx.bid_id} baseAmount={ctx.base_amount} />
                   </div>
                 </Collapsible>
