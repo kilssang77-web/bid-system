@@ -1,0 +1,57 @@
+name: Weekly Maintenance
+
+# 매주 월요일 오전 10시 (KST = UTC+9 → 01:00 UTC) 정기 유지보수
+
+on:
+  schedule:
+    - cron: '0 1 * * 1'    # 매주 월요일 01:00 UTC (KST 10:00)
+  workflow_dispatch:        # 수동 실행 가능
+
+jobs:
+  weekly-retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: ML 모델 주간 재학습
+
+    steps:
+      - name: Ping to wake up backend (cold start 대비)
+        run: |
+          curl -s "${{ secrets.BACKEND_URL }}/api/health" || true
+          sleep 60
+
+      - name: Check backend health
+        run: |
+          for i in {1..5}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 30 "${{ secrets.BACKEND_URL }}/api/health")
+            echo "Attempt $i: $STATUS"
+            [ "$STATUS" = "200" ] && break
+            sleep 20
+          done
+
+      - name: Trigger weekly ML retrain
+        id: retrain
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST "${{ secrets.BACKEND_URL }}/api/v1/admin/ml/retrain/auto" \
+            -H "X-Auto-Key: ${{ secrets.AUTOMATION_SECRET }}" \
+            --max-time 30)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          echo "status=$HTTP_CODE" >> $GITHUB_OUTPUT
+          echo "ML retrain trigger: HTTP $HTTP_CODE"
+
+      - name: Send Discord weekly report
+        if: always()
+        run: |
+          WEEK=$(date +"%Y년 %m월 %V주차")
+          if [ "${{ steps.retrain.outputs.status }}" = "200" ]; then
+            MSG="✅ **주간 ML 재학습 완료** — $WEEK\n모델이 최신 낙찰 데이터를 반영했습니다."
+            COLOR=3066993
+          else
+            MSG="⚠️ **주간 ML 재학습 실패** — $WEEK\n수동으로 관리자 페이지에서 재학습을 실행하세요."
+            COLOR=16776960
+          fi
+          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"embeds\":[{\"title\":\"BidAI Pro 주간 유지보수\",\"description\":\"$MSG\",\"color\":$COLOR,\"footer\":{\"text\":\"자동 실행 — GitHub Actions\"}}]}" \
+            || echo "Discord webhook not configured, skipping"

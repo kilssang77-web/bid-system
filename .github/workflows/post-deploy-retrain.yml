@@ -1,0 +1,67 @@
+name: Post-Deploy ML Retrain
+
+# master에 코드 push → Render 자동 배포 완료 후 ML 재학습 자동 실행
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'bid-system/backend/**'   # 백엔드 변경 시에만 실행
+
+jobs:
+  wait-and-retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Wait for Render to deploy (8 minutes)
+        run: sleep 480
+
+      - name: Wait for backend to be healthy
+        run: |
+          echo "Checking backend health..."
+          for i in {1..6}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 30 \
+              "${{ secrets.BACKEND_URL }}/api/health" 2>/dev/null || echo "000")
+            echo "Attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Backend is healthy"
+              break
+            fi
+            if [ $i -eq 6 ]; then
+              echo "::error::Backend not responding after 6 attempts"
+              exit 1
+            fi
+            sleep 30
+          done
+
+      - name: Trigger ML retrain via automation endpoint
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST "${{ secrets.BACKEND_URL }}/api/v1/admin/ml/retrain/auto" \
+            -H "X-Auto-Key: ${{ secrets.AUTOMATION_SECRET }}" \
+            --max-time 30)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -1)
+          echo "Response: $BODY"
+          echo "HTTP Status: $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::ML retrain trigger failed with status $HTTP_CODE"
+            exit 1
+          fi
+
+      - name: Send Discord notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            MESSAGE="✅ **배포 후 ML 재학습 완료**\n브랜치: \`master\`\n커밋: \`${{ github.sha }}\`"
+            COLOR=3066993
+          else
+            MESSAGE="❌ **배포 후 ML 재학습 실패**\n브랜치: \`master\`\n커밋: \`${{ github.sha }}\`"
+            COLOR=15158332
+          fi
+          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"embeds\":[{\"title\":\"BidAI Pro 자동화\",\"description\":\"$MESSAGE\",\"color\":$COLOR}]}" \
+            || echo "Discord notification skipped (webhook not set)"

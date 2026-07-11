@@ -5,7 +5,7 @@ import os
 logger = logging.getLogger(__name__)
 
 from typing import Optional, List
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -102,13 +102,7 @@ def update_industry_filters(
     return _admin_svc.update_industry_filters(db, body.active_ids)
 
 
-@router.post("/ml/retrain")
-def retrain_ml(
-    _: User = Depends(require_role("admin")),
-):
-    """ML 모델 재학습 — assessment_rate_stats 집계 + Engine A+B 학습 (별도 스레드)."""
-    import threading
-    def _run():
+def _do_ml_retrain_background():
         import traceback
         import pandas as pd
         from datetime import datetime, timedelta
@@ -330,9 +324,28 @@ def retrain_ml(
         finally:
             db.close()
 
-    t = threading.Thread(target=_run, daemon=True)
+@router.post("/ml/retrain")
+def retrain_ml(
+    _: User = Depends(require_role("admin")),
+):
+    """ML 모델 재학습 — assessment_rate_stats 집계 + Engine A+B 학습 (별도 스레드)."""
+    import threading
+    t = threading.Thread(target=_do_ml_retrain_background, daemon=True)
     t.start()
     return {"status": "started", "message": "ML 재학습 시작됨 (별도 스레드) — 완료까지 1~3분 소요"}
+
+
+@router.post("/ml/retrain/auto", include_in_schema=False)
+def retrain_ml_auto(request_obj: Request):
+    """GitHub Actions 자동화 전용 재학습 — X-Auto-Key 헤더로 인증 (JWT 불필요)."""
+    import threading
+    secret = request_obj.headers.get("X-Auto-Key", "")
+    expected = os.getenv("AUTOMATION_SECRET", "")
+    if not expected or not secret or secret != expected:
+        raise HTTPException(status_code=403, detail="automation key invalid")
+    t = threading.Thread(target=_do_ml_retrain_background, daemon=True)
+    t.start()
+    return {"status": "started", "message": "자동화 ML 재학습 시작됨"}
 
 
 @router.post("/ml/train-win-prob")
