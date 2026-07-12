@@ -1,4 +1,4 @@
-import { X, Server, Database, Globe, Zap, Github, AlertTriangle, CheckCircle, RefreshCw, Key, HardDrive, Clock } from 'lucide-react'
+import { X, Server, Database, Globe, Zap, Github, AlertTriangle, CheckCircle, RefreshCw, Key, HardDrive, Clock, Activity, Bell, Bot, Radio } from 'lucide-react'
 
 interface Props {
   open: boolean
@@ -87,7 +87,7 @@ export default function ServiceManualModal({ open, onClose }: Props) {
           {/* ─── 전체 구조 요약 ─── */}
           <Section title="서비스 전체 구조 — 한눈에 보기" icon={Globe} color="border-blue-300 text-blue-700">
             <div className="bg-slate-50 rounded-xl p-4 text-sm font-mono text-slate-700 leading-relaxed mb-3">
-              <p className="text-center text-slate-500 text-xs mb-3 font-sans">[ 데이터 흐름 ]</p>
+              <p className="text-center text-slate-500 text-xs mb-3 font-sans">[ 데이터 흐름 + 자동화 구조 ]</p>
               <div className="flex flex-col items-center gap-1">
                 <div className="bg-white border border-slate-200 rounded-lg px-4 py-2 text-center">
                   🧑 사용자 (웹 브라우저)
@@ -102,31 +102,47 @@ export default function ServiceManualModal({ open, onClose }: Props) {
                   ⚙️ <strong>Render.com</strong><br/>
                   <span className="text-xs text-slate-500">bid-system-backend-ssu1.onrender.com (서버 담당)</span>
                 </div>
-                <div className="flex gap-4 mt-1">
+                <div className="flex gap-3 mt-1 flex-wrap justify-center">
                   <div className="flex flex-col items-center gap-1">
-                    <div className="text-slate-400">↕ 저장/조회</div>
+                    <div className="text-slate-400 text-xs">↕ 저장/조회</div>
                     <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-center">
                       🗄️ <strong>CockroachDB</strong><br/>
                       <span className="text-xs text-slate-500">데이터베이스</span>
                     </div>
                   </div>
                   <div className="flex flex-col items-center gap-1">
-                    <div className="text-slate-400">↕ 빠른 조회</div>
+                    <div className="text-slate-400 text-xs">↕ 빠른 조회</div>
                     <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-center">
                       ⚡ <strong>Upstash Redis</strong><br/>
                       <span className="text-xs text-slate-500">캐시(임시저장소)</span>
                     </div>
                   </div>
                 </div>
-                <div className="text-slate-400">↑</div>
+                <div className="text-slate-400">↑ 코드 배포</div>
                 <div className="bg-slate-100 border border-slate-200 rounded-lg px-4 py-2 text-center">
                   🐙 <strong>GitHub</strong><br/>
-                  <span className="text-xs text-slate-500">소스코드 보관 → 자동 배포 트리거</span>
+                  <span className="text-xs text-slate-500">소스코드 보관 → 자동 배포 + 자동화 워크플로</span>
+                </div>
+                <div className="flex gap-3 mt-1 flex-wrap justify-center">
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="text-slate-400 text-xs">5분 핑</div>
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg px-3 py-2 text-center">
+                      📡 <strong>UptimeRobot</strong><br/>
+                      <span className="text-xs text-slate-500">절전 방지</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="text-slate-400 text-xs">알림</div>
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 text-center">
+                      🔔 <strong>Discord</strong><br/>
+                      <span className="text-xs text-slate-500">운영 알림</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
             <InfoBox type="info">
-              <strong>쉽게 이해하기:</strong> Cloudflare는 "간판(화면)", Render는 "주방(요리)", CockroachDB는 "냉장고(재료 보관)", Redis는 "앞에 놓은 그릇(빨리 꺼내기)", GitHub은 "레시피 노트" 역할입니다.
+              <strong>쉽게 이해하기:</strong> Cloudflare는 "간판(화면)", Render는 "주방(요리)", CockroachDB는 "냉장고", Redis는 "앞 창구", GitHub은 "레시피 노트", UptimeRobot은 "야간 경비원(서버 깨우기)", Discord는 "알림 메신저" 역할입니다.
             </InfoBox>
           </Section>
 
@@ -190,6 +206,41 @@ export default function ServiceManualModal({ open, onClose }: Props) {
                   <p>• DB까지 가지 않고 Redis에서 바로 응답 → 응답속도 50~80% 단축</p>
                   <p className="text-slate-500">• 인스턴스명: bid-redis / 포트: 6379 / TLS 활성화</p>
                   <p className="text-emerald-700 font-medium">• 무료 (일 10,000 명령, 256MB)</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 overflow-hidden">
+                <div className="bg-purple-700 text-white px-3 py-2 text-xs font-semibold flex items-center gap-2">
+                  <Radio className="h-3.5 w-3.5" /> UptimeRobot — 서버 절전 방지 모니터
+                </div>
+                <div className="px-3 py-2 text-sm space-y-1">
+                  <p>• 5분마다 서버에 핑(ping)을 보내 절전 모드 진입을 방지합니다</p>
+                  <p>• Render 무료 플랜의 "15분 미사용 절전" 문제를 완전히 해결합니다</p>
+                  <p className="text-slate-500">• 모니터 URL: https://bid-system-backend-ssu1.onrender.com/api/health</p>
+                  <p className="text-emerald-700 font-medium">• 무료 (모니터 50개, 5분 간격)</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 overflow-hidden">
+                <div className="bg-slate-900 text-white px-3 py-2 text-xs font-semibold flex items-center gap-2">
+                  <Github className="h-3.5 w-3.5" /> GitHub Actions — 자동화 워크플로
+                </div>
+                <div className="px-3 py-2 text-sm space-y-1">
+                  <p>• 코드 배포 후 ML 재학습, 주간 재학습, 월간 점검을 자동으로 실행합니다</p>
+                  <p>• UptimeRobot 장애 시 14분 간격 백업 핑도 담당합니다</p>
+                  <p className="text-slate-500">• 워크플로 4개: keep-alive, post-deploy-retrain, weekly-maintenance, monthly-health-check</p>
+                  <p className="text-emerald-700 font-medium">• 무료 (월 2,000분 — 현재 사용량 매우 여유)</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 overflow-hidden">
+                <div className="bg-indigo-700 text-white px-3 py-2 text-xs font-semibold flex items-center gap-2">
+                  <Bell className="h-3.5 w-3.5" /> Discord — 운영 알림
+                </div>
+                <div className="px-3 py-2 text-sm space-y-1">
+                  <p>• GitHub Actions가 자동화 결과(성공/실패)를 Discord 채널로 실시간 알림합니다</p>
+                  <p>• 주간 ML 재학습 결과, 월간 점검 보고서, 배포 후 재학습 결과를 수신합니다</p>
+                  <p className="text-emerald-700 font-medium">• 무료 (웹훅 방식, 서버 비용 없음)</p>
                 </div>
               </div>
             </div>
@@ -262,10 +313,10 @@ export default function ServiceManualModal({ open, onClose }: Props) {
             </Step>
 
             <Step num={7} title="ML 모델 학습">
-              <p>① 로그인 후 관리자 페이지(/admin) 접속</p>
-              <p>② "ML 모델 재학습" 버튼 클릭 → 학습 완료 대기(수 분)</p>
-              <p>③ AI 투찰결정 기능에서 "모델 버전" 표시 확인</p>
-              <InfoBox type="warn"><strong>중요:</strong> Render 재배포(코드 업데이트) 시마다 학습된 모델 파일이 초기화됩니다. 재배포 후 반드시 재학습 필요합니다.</InfoBox>
+              <p>① 최초 구축 시: 로그인 후 관리자 페이지(/admin) 접속 → "ML 모델 재학습" 버튼 클릭</p>
+              <p>② 이후 재배포 시: <strong>자동으로 재학습</strong> (GitHub Actions post-deploy-retrain 워크플로가 8분 후 자동 실행)</p>
+              <p>③ Discord에 "✅ 배포 후 ML 재학습 완료" 알림이 오면 정상 완료</p>
+              <InfoBox type="ok"><strong>자동화 완료:</strong> 코드 push → Render 재배포 → GitHub Actions가 8분 후 자동 ML 재학습 → Discord 알림. 수동 재학습 불필요.</InfoBox>
             </Step>
           </Section>
 
@@ -279,33 +330,96 @@ export default function ServiceManualModal({ open, onClose }: Props) {
               <Tag label="FIRST_ADMIN_PASSWORD" value="최초 관리자 비밀번호" />
               <Tag label="ML_MODELS_PATH" value="/app/ml_models" />
               <Tag label="PYTHONDONTWRITEBYTECODE" value="1" />
+              <Tag label="AUTOMATION_SECRET" value="GitHub Actions 자동 ML재학습 인증 키 (임의 랜덤 문자열)" />
             </div>
             <InfoBox type="warn">환경변수는 절대 외부에 공유하지 마세요. 특히 SECRET_KEY와 DATABASE_URL은 시스템 보안의 핵심입니다.</InfoBox>
+            <InfoBox type="info"><strong>AUTOMATION_SECRET</strong> 주의: GitHub Secrets의 값과 Render 환경변수 값이 <strong>반드시 동일</strong>해야 합니다. 값이 다르거나 어느 한쪽에만 설정되면 주간 자동 재학습이 403 오류로 실패합니다.</InfoBox>
           </Section>
 
-          {/* ─── 향후 운영 가이드 ─── */}
-          <Section title="향후 운영 가이드 — 알아두어야 할 것들" icon={HardDrive} color="border-rose-300 text-rose-700">
+          {/* ─── 운영 자동화 시스템 ─── */}
+          <Section title="운영 자동화 시스템 (현행)" icon={Bot} color="border-violet-300 text-violet-700">
+            <InfoBox type="ok">아래 5가지 작업이 모두 자동으로 실행됩니다. 수동 개입 없이 시스템이 유지됩니다.</InfoBox>
+            <div className="rounded-lg border border-slate-200 overflow-hidden text-sm">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-600 text-xs">
+                    <th className="text-left px-3 py-2 font-semibold">역할</th>
+                    <th className="text-left px-3 py-2 font-semibold">담당 도구</th>
+                    <th className="text-left px-3 py-2 font-semibold">주기</th>
+                    <th className="text-left px-3 py-2 font-semibold">알림</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  <tr>
+                    <td className="px-3 py-2">서버 절전 방지 (주)</td>
+                    <td className="px-3 py-2 text-purple-700 font-medium">UptimeRobot</td>
+                    <td className="px-3 py-2 text-slate-500">5분마다</td>
+                    <td className="px-3 py-2 text-slate-500">없음</td>
+                  </tr>
+                  <tr className="bg-slate-50">
+                    <td className="px-3 py-2">서버 절전 방지 (백업)</td>
+                    <td className="px-3 py-2 font-medium">GitHub Actions</td>
+                    <td className="px-3 py-2 text-slate-500">14분마다</td>
+                    <td className="px-3 py-2 text-slate-500">없음</td>
+                  </tr>
+                  <tr>
+                    <td className="px-3 py-2">배포 후 ML 재학습</td>
+                    <td className="px-3 py-2 font-medium">GitHub Actions</td>
+                    <td className="px-3 py-2 text-slate-500">코드 push 시</td>
+                    <td className="px-3 py-2 text-emerald-700">Discord ✓</td>
+                  </tr>
+                  <tr className="bg-slate-50">
+                    <td className="px-3 py-2">주간 ML 재학습</td>
+                    <td className="px-3 py-2 font-medium">GitHub Actions</td>
+                    <td className="px-3 py-2 text-slate-500">매주 월요일 오전 10시</td>
+                    <td className="px-3 py-2 text-emerald-700">Discord ✓</td>
+                  </tr>
+                  <tr>
+                    <td className="px-3 py-2">월간 시스템 점검 보고</td>
+                    <td className="px-3 py-2 font-medium">GitHub Actions</td>
+                    <td className="px-3 py-2 text-slate-500">매월 1일 오전 9시</td>
+                    <td className="px-3 py-2 text-emerald-700">Discord ✓</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="font-semibold text-amber-800 text-sm mb-1.5 flex items-center gap-1.5">
+                <AlertTriangle className="h-4 w-4" /> Discord "주간 ML 재학습 실패" 알림을 받았다면
+              </p>
+              <div className="text-sm text-amber-700 space-y-1">
+                <p><strong>원인 1 (가장 흔함):</strong> Render 환경변수에 <code className="bg-white/60 px-1 rounded">AUTOMATION_SECRET</code>이 없거나 GitHub Secrets 값과 다름</p>
+                <p className="ml-4">→ Render 대시보드 → Environment → AUTOMATION_SECRET 값 확인 후 일치시키고 Manual Deploy</p>
+                <p><strong>원인 2:</strong> 백엔드가 30초 안에 응답 못 함 (콜드 스타트 + 타임아웃)</p>
+                <p className="ml-4">→ UptimeRobot이 정상 작동 중이면 드문 케이스. 관리자 페이지에서 수동 재학습 실행</p>
+              </div>
+            </div>
+          </Section>
+
+          {/* ─── 운영 가이드 ─── */}
+          <Section title="운영 가이드 — 알아두어야 할 것들" icon={HardDrive} color="border-rose-300 text-rose-700">
 
             <div className="space-y-3">
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                <p className="font-semibold text-amber-800 text-sm mb-1 flex items-center gap-1.5">
-                  <Clock className="h-4 w-4" /> 콜드 스타트 (가장 자주 겪는 현상)
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                <p className="font-semibold text-emerald-800 text-sm mb-1 flex items-center gap-1.5">
+                  <Clock className="h-4 w-4" /> 콜드 스타트 — ✅ 자동 해결됨
                 </p>
-                <p className="text-sm text-amber-700">
-                  Render 무료 플랜은 <strong>15분 동안 아무도 접속하지 않으면 서버가 절전 모드</strong>로 전환됩니다.<br />
-                  이 상태에서 첫 접속 시 "서버에 연결할 수 없습니다" 오류가 뜨다가 30~60초 후 자동 복구됩니다.<br />
-                  <strong>해결책:</strong> 잠시 기다렸다가 새로고침(F5)하면 됩니다. 유료 플랜($7/월)으로 전환하면 해결됩니다.
+                <p className="text-sm text-emerald-700">
+                  Render 무료 플랜의 "15분 미사용 절전" 문제는 <strong>UptimeRobot이 5분마다 서버에 핑</strong>을 보내 완전히 방지됩니다.<br />
+                  UptimeRobot이 일시 장애일 때만 GitHub Actions(14분 간격)가 백업으로 핑합니다.<br />
+                  <span className="text-slate-500 text-xs">※ UptimeRobot 모니터가 활성 상태인지 가끔 확인하세요.</span>
                 </p>
               </div>
 
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
                 <p className="font-semibold text-blue-800 text-sm mb-1 flex items-center gap-1.5">
-                  <RefreshCw className="h-4 w-4" /> 코드 업데이트 후 반드시 해야 할 일
+                  <RefreshCw className="h-4 w-4" /> 코드 업데이트 후 해야 할 일
                 </p>
                 <ul className="text-sm text-blue-700 space-y-0.5 list-disc list-inside">
                   <li>GitHub에 코드 올리기 (push) → Render/Cloudflare 자동 재배포</li>
-                  <li>Render 재배포 후 <strong>관리자 페이지에서 ML 모델 재학습</strong> 필수</li>
+                  <li><strong>ML 모델 재학습은 자동</strong> — 배포 8분 후 GitHub Actions가 자동으로 실행하고 Discord로 결과 알림</li>
                   <li>재배포 완료까지 약 5~10분 소요 (Render 대시보드에서 진행 확인 가능)</li>
+                  <li>배포 후 Discord에 "✅ 배포 후 ML 재학습 완료" 알림이 오면 모든 작업 완료</li>
                 </ul>
               </div>
 
@@ -318,6 +432,7 @@ export default function ServiceManualModal({ open, onClose }: Props) {
                   <p>• <strong>CockroachDB:</strong> 저장 5GB, 월 500만 RU → 현재 여유 충분</p>
                   <p>• <strong>Upstash Redis:</strong> 일 10,000 명령 → 사용자 많아지면 초과 가능</p>
                   <p>• <strong>Cloudflare Pages:</strong> 월 500회 빌드 → 하루 16번 배포해도 충분</p>
+                  <p>• <strong>GitHub Actions:</strong> 월 2,000분 → 현재 사용량 매우 여유</p>
                 </div>
               </div>
 
@@ -326,9 +441,10 @@ export default function ServiceManualModal({ open, onClose }: Props) {
                   <CheckCircle className="h-4 w-4" /> 정기 유지보수 체크리스트
                 </p>
                 <ul className="text-sm text-emerald-700 space-y-0.5 list-disc list-inside">
-                  <li><strong>매주:</strong> 관리자 페이지에서 ML 모델 재학습 (낙찰 데이터 누적 반영)</li>
-                  <li><strong>매월:</strong> CockroachDB 콘솔에서 데이터 사용량 확인</li>
-                  <li><strong>매월:</strong> 나라장터 데이터 수집 스크립트 실행 (최신 낙찰 데이터 보강)</li>
+                  <li><strong>매주 (자동):</strong> ML 재학습 — 매주 월요일 GitHub Actions 자동 실행, Discord 결과 알림</li>
+                  <li><strong>매월 (자동):</strong> 월간 점검 보고서 — 매월 1일 Discord로 체크리스트 수신</li>
+                  <li><strong>매월 (수동):</strong> Discord 월간 점검 보고서의 체크리스트 항목 실행</li>
+                  <li><strong>매월 (수동):</strong> 나라장터 데이터 수집 스크립트 실행 (최신 낙찰 데이터 보강)</li>
                   <li><strong>필요 시:</strong> 투찰 결과 기록 (투찰 기록 버튼 활용) → AI 정확도 향상</li>
                 </ul>
               </div>
@@ -338,11 +454,12 @@ export default function ServiceManualModal({ open, onClose }: Props) {
                   <AlertTriangle className="h-4 w-4" /> 문제 발생 시 대처 순서
                 </p>
                 <div className="text-sm text-rose-700 space-y-1">
-                  <p><strong>① "서버에 연결할 수 없습니다"</strong> → 30~60초 대기 후 새로고침 (콜드 스타트)</p>
-                  <p><strong>② 로그인 401 오류</strong> → Render 환경변수 FIRST_ADMIN_PASSWORD 확인 후 재배포</p>
-                  <p><strong>③ AI 추천이 작동 안 함</strong> → 관리자 페이지에서 ML 모델 재학습</p>
-                  <p><strong>④ 데이터가 저장 안 됨</strong> → Render 로그 확인: 대시보드 → bid-system-backend → Logs</p>
-                  <p><strong>⑤ 그 외 오류</strong> → render.com 로그 확인 → 에러 메시지를 AI(Claude)에 전달하여 해결</p>
+                  <p><strong>① "서버에 연결할 수 없습니다"</strong> → UptimeRobot 모니터 상태 확인. 비활성이면 재활성화</p>
+                  <p><strong>② Discord "ML 재학습 실패" 알림</strong> → Render의 AUTOMATION_SECRET 환경변수 값 확인</p>
+                  <p><strong>③ 로그인 401 오류</strong> → Render 환경변수 FIRST_ADMIN_PASSWORD 확인 후 재배포</p>
+                  <p><strong>④ AI 추천이 작동 안 함</strong> → 관리자 페이지에서 ML 모델 수동 재학습</p>
+                  <p><strong>⑤ 데이터가 저장 안 됨</strong> → Render 로그 확인: 대시보드 → bid-system-backend → Logs</p>
+                  <p><strong>⑥ 그 외 오류</strong> → 로그 에러 메시지를 AI(Claude)에 전달하여 해결</p>
                 </div>
               </div>
 
@@ -368,6 +485,7 @@ export default function ServiceManualModal({ open, onClose }: Props) {
                   <p>• <strong>CockroachDB:</strong> cockroachlabs.com → 동일 이메일</p>
                   <p>• <strong>Upstash:</strong> upstash.com → 동일 이메일</p>
                   <p>• <strong>Cloudflare:</strong> cloudflare.com → 동일 이메일</p>
+                  <p>• <strong>UptimeRobot:</strong> uptimerobot.com → 동일 이메일</p>
                 </div>
               </div>
             </div>
@@ -382,6 +500,8 @@ export default function ServiceManualModal({ open, onClose }: Props) {
                 { name: 'Upstash (Redis 관리)', url: 'https://console.upstash.com', desc: '캐시 모니터링' },
                 { name: 'Cloudflare (웹사이트)', url: 'https://dash.cloudflare.com', desc: '배포·도메인·트래픽' },
                 { name: 'GitHub (소스코드)', url: 'https://github.com/kilssang77-web/atom-harness-g2b', desc: '코드·커밋 이력' },
+                { name: 'GitHub Actions (자동화)', url: 'https://github.com/kilssang77-web/atom-harness-g2b/actions', desc: '워크플로 실행 현황·로그' },
+                { name: 'UptimeRobot (서버 감시)', url: 'https://uptimerobot.com/dashboard', desc: '절전방지 모니터 상태' },
                 { name: 'BidAI Pro (서비스)', url: 'https://bid-system.pages.dev', desc: '실제 서비스 접속' },
               ].map(({ name, url, desc }) => (
                 <a
