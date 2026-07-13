@@ -355,6 +355,14 @@ class MyBidFeedbackService:
             except Exception as _wp_e:
                 logger.warning("win_prob_model 재학습 실패: %s", _wp_e)
 
+            # GMM 재피팅
+            try:
+                from ..ml.competitor_cluster import fit_from_db as _gmm_fit
+                _gmm_fit(db)
+                logger.info("GMM 클러스터 재피팅 완료")
+            except Exception as _gmm_e:
+                logger.warning("GMM 재피팅 실패: %s", _gmm_e)
+
         except Exception as exc:
             logger.error("자동 재학습 실패: %s", exc)
         finally:

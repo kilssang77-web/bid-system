@@ -10,47 +10,88 @@ on:
 jobs:
   weekly-retrain:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     name: ML 모델 주간 재학습
 
     steps:
       - name: Ping to wake up backend (cold start 대비)
         run: |
-          curl -s "${{ secrets.BACKEND_URL }}/api/health" || true
-          sleep 60
+          # 첫 핑 — Render 슬립 해제 트리거
+          curl -s --max-time 10 "${{ secrets.BACKEND_URL }}/api/health" || true
+          echo "Cold start ping sent. Waiting 90s for Render to fully initialize..."
+          sleep 90
 
       - name: Check backend health
+        id: health
         run: |
-          for i in {1..5}; do
+          for i in {1..8}; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
               --max-time 30 "${{ secrets.BACKEND_URL }}/api/health")
-            echo "Attempt $i: $STATUS"
-            [ "$STATUS" = "200" ] && break
-            sleep 20
+            echo "Health check attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "ready=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            sleep 30
           done
+          echo "::error::Backend did not become healthy after 8 attempts (~4 min)"
+          echo "ready=false" >> $GITHUB_OUTPUT
+          exit 1
 
-      - name: Trigger weekly ML retrain
+      - name: Trigger weekly ML retrain (최대 3회 재시도)
         id: retrain
         run: |
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
-            -X POST "${{ secrets.BACKEND_URL }}/api/v1/admin/ml/retrain/auto" \
-            -H "X-Auto-Key: ${{ secrets.AUTOMATION_SECRET }}" \
-            --max-time 30)
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          HTTP_CODE="000"
+          for attempt in 1 2 3; do
+            echo "--- Retrain attempt $attempt/3 ---"
+            RESPONSE=$(curl -s -w "\n%{http_code}" \
+              -X POST "${{ secrets.BACKEND_URL }}/api/v1/admin/ml/retrain/auto" \
+              -H "X-Auto-Key: ${{ secrets.AUTOMATION_SECRET }}" \
+              --max-time 30)
+            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+            BODY=$(echo "$RESPONSE" | head -1)
+            echo "HTTP $HTTP_CODE — $BODY"
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "status=200" >> $GITHUB_OUTPUT
+              echo "attempts=$attempt" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            if [ "$HTTP_CODE" = "403" ]; then
+              echo "::error::AUTOMATION_SECRET 불일치 (403) — 재시도 불필요"
+              break
+            fi
+            if [ $attempt -lt 3 ]; then
+              echo "Waiting 30s before retry..."
+              sleep 30
+            fi
+          done
           echo "status=$HTTP_CODE" >> $GITHUB_OUTPUT
-          echo "ML retrain trigger: HTTP $HTTP_CODE"
+          echo "attempts=3" >> $GITHUB_OUTPUT
+          exit 1
 
       - name: Send Discord weekly report
         if: always()
         run: |
           WEEK=$(date +"%Y년 %m월 %V주차")
-          if [ "${{ steps.retrain.outputs.status }}" = "200" ]; then
-            MSG="✅ **주간 ML 재학습 완료** — $WEEK\n모델이 최신 낙찰 데이터를 반영했습니다."
+          RETRAIN_STATUS="${{ steps.retrain.outputs.status }}"
+          ATTEMPTS="${{ steps.retrain.outputs.attempts }}"
+
+          if [ "$RETRAIN_STATUS" = "200" ]; then
+            if [ "$ATTEMPTS" = "1" ]; then
+              DETAIL="1회 시도 성공"
+            else
+              DETAIL="${ATTEMPTS}회 시도 후 성공"
+            fi
+            MSG="✅ **주간 ML 재학습 완료** — $WEEK\n모델이 최신 낙찰 데이터를 반영했습니다. ($DETAIL)"
             COLOR=3066993
+          elif [ "${{ steps.health.outputs.ready }}" != "true" ]; then
+            MSG="❌ **주간 ML 재학습 실패** — $WEEK\n백엔드가 응답하지 않습니다 (cold start 실패).\n수동으로 관리자 페이지에서 재학습을 실행하세요."
+            COLOR=15158332
           else
-            MSG="⚠️ **주간 ML 재학습 실패** — $WEEK\n수동으로 관리자 페이지에서 재학습을 실행하세요."
+            MSG="⚠️ **주간 ML 재학습 실패** — $WEEK\nAPI 응답: HTTP $RETRAIN_STATUS (3회 재시도 후 실패).\n수동으로 관리자 페이지에서 재학습을 실행하세요."
             COLOR=16776960
           fi
+
           curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
             -H "Content-Type: application/json" \
             -d "{\"embeds\":[{\"title\":\"BidAI Pro 주간 유지보수\",\"description\":\"$MSG\",\"color\":$COLOR,\"footer\":{\"text\":\"자동 실행 — GitHub Actions\"}}]}" \

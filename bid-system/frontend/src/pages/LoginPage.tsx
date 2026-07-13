@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export default function LoginPage() {
-  const [email, setEmail]       = useState('admin@bid.local')
-  const [password, setPassword] = useState('admin1234')
+  const [email, setEmail]       = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
   const { setToken, setUser }   = useAuthStore()
@@ -181,10 +181,6 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 rounded-xl bg-slate-800/50 border border-slate-700/50 px-4 py-3">
-            <p className="text-xs text-slate-500 font-medium mb-1">테스트 계정</p>
-            <p className="text-xs text-slate-500 font-mono">admin@bid.local / admin1234</p>
-          </div>
         </div>
       </div>
     </div>
