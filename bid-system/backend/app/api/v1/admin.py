@@ -1010,7 +1010,11 @@ def trigger_inpo21c_bid_notices(
     from ...collector.inpo21c import collect_bid_notices_inpo21c
     label = f"지역={region}" if region else "전국"
     logger.info("inpo21c 입찰공고 수집 시작 [%s, max_pages=%d]", label, max_pages)
-    result = collect_bid_notices_inpo21c(db, max_pages=max_pages, region=region)
+    try:
+        result = collect_bid_notices_inpo21c(db, max_pages=max_pages, region=region)
+    except Exception as exc:
+        logger.error("inpo21c 수집 예외: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(exc))
     logger.info("inpo21c 입찰공고 수집 완료 [%s]: %s", label, result)
     return {"message": f"수집 완료 [{label}]", "result": result}
 
