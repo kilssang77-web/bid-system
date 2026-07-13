@@ -47,7 +47,9 @@ def run_collection_job(collect_type: str) -> None:
     from app.config import get_settings
     from app.database import SessionLocal
     from app.collector.client import NarajangterClient
-    from app.collector.service import collect_notices, collect_results, run_full_collection
+    from app.collector.service import (
+        collect_notices, collect_results, run_full_collection, sync_inpo21c_to_bids,
+    )
 
     settings = get_settings()
     db = SessionLocal()
@@ -60,6 +62,14 @@ def run_collection_job(collect_type: str) -> None:
             # 공사 + 용역 동시 수집 (G2B API coverage 확대)
             collect_notices(db, client, "notice_cnstwk")
             collect_notices(db, client, "notice_servc")
+            # G2B indutyNm null 보완 — inpo21c [대] 업종/지역 역방향 백필
+            try:
+                sync_result = sync_inpo21c_to_bids(db)
+                logger.info("G2B 수집 후 inpo21c 백필: industry=%s, region=%s",
+                            sync_result.get("updated_industry_id", 0),
+                            sync_result.get("updated_region_id", 0))
+            except Exception as _se:
+                logger.warning("G2B 수집 후 inpo21c 백필 실패: %s", _se)
         elif collect_type == "results":
             collect_results(db, client)
             _trigger_ml_retrain("G2B 결과 수집 완료")

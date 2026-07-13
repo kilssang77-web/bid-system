@@ -27,9 +27,12 @@ _TITLE_INDUSTRY_KEYWORDS: list[tuple[list[str], str]] = [
     (["방수공사", "방수처리", "방수 공사", "방수도장"],           "도장ㆍ습식ㆍ방수ㆍ석공사업"),
     (["도장공사", "도장 공사", "페인트", "도색공사"],             "도장ㆍ습식ㆍ방수ㆍ석공사업"),
     (["미장공사", "타일공사", "석공사", "습식공사"],               "도장ㆍ습식ㆍ방수ㆍ석공사업"),
-    (["실내건축공사", "인테리어공사", "내장공사", "칸막이공사", "목공사", "도배공사"],
+    (["실내건축공사", "인테리어공사", "내장공사", "칸막이공사", "목공사", "도배공사",
+      "공간혁신", "학교공간혁신", "승강기교체", "엘리베이터교체"],
                                                                    "실내건축공사업"),
-    (["창호공사", "창문공사", "유리공사", "지붕공사", "금속공사"], "금속창호ㆍ지붕건축물조립공사업"),
+    (["창호공사", "창문공사", "유리공사", "지붕공사", "금속공사",
+      "방화셔터", "방화문교체", "방화문 교체", "셔터교체", "셔터 교체",
+      "창호교체", "창호 교체", "외벽교체", "외벽 교체"], "금속창호ㆍ지붕건축물조립공사업"),
     (["전기공사", "조명공사", "전기설비", "수변전", "배전공사"],   "전기공사업"),
     (["기계설비공사", "냉난방공사", "공조공사", "환기공사", "배관공사", "냉난방기"],
                                                                    "기계설비ㆍ가스공사업"),
@@ -88,6 +91,81 @@ def _resolve_region_id(db: Session, name: str | None) -> int | None:
         row = db.query(Region.id).filter(Region.name == name).first()
         _region_cache[name] = row[0] if row else None
     return _region_cache[name]
+
+
+# ──────────────────────────────────────────────────────────────────────────── #
+# 인포21 업종/지역 문자열 → DB ID 변환                                         #
+# G2B API indutyNm null 보완용: inpo21c.industry [대] 태그 기반 매핑           #
+# ──────────────────────────────────────────────────────────────────────────── #
+
+# (인포21 표기, DB industries.name) 순서쌍 — 앞 항목이 우선 적용
+_INPO21C_DAE_MAP: list[tuple[str, str]] = [
+    ("실내건축[대]",            "실내건축공사업"),
+    ("금속창호.지붕건축물[대]", "금속창호ㆍ지붕건축물조립공사업"),
+    ("도장.습식.방수.석공[대]", "도장ㆍ습식ㆍ방수ㆍ석공사업"),
+    ("지반조성.포장[대]",       "지반조성ㆍ포장공사업"),
+    ("상.하수도[대]",           "상ㆍ하수도설비공사업"),
+    ("비계구조[대]",            "구조물해체ㆍ비계공사업"),
+    ("철콘[대]",                "철근ㆍ콘크리트공사업"),
+    ("기계가스[대]",            "기계설비ㆍ가스공사업"),
+    ("조경식재[대]",            "조경공사업"),
+    ("조경시설[대]",            "조경공사업"),
+    ("철강구조물[대]",          "철강구조물공사업"),
+    ("강구조물[대]",            "철강구조물공사업"),
+    ("수중준설[대]",            "수중ㆍ준설공사업"),
+]
+
+
+def _resolve_industry_from_inpo21c(
+    db: Session,
+    inpo21c_industry: str | None,
+    prefer_ids: set[int] | None = None,
+) -> int | None:
+    """인포21 industry 문자열에서 [대] 전문건설 업종을 추출해 DB industry_id 반환.
+
+    복수 업종이 있을 때 prefer_ids(활성 IndustryFilter) 에 속한 것을 우선 선택.
+    prefer_ids 미지정이면 문자열에서 가장 먼저 등장하는 [대] 업종 반환.
+    """
+    if not inpo21c_industry:
+        return None
+    # 안내문("상호허용..." 이후) 제거
+    first_line = inpo21c_industry.split("\n")[0].strip()
+    if "[대]" not in first_line:
+        return None
+
+    matched: list[int] = []
+    for tag, db_name in _INPO21C_DAE_MAP:
+        if tag in first_line:
+            iid = _resolve_industry_id(db, db_name)
+            if iid and iid not in matched:
+                matched.append(iid)
+
+    if not matched:
+        return None
+    if prefer_ids:
+        for iid in matched:
+            if iid in prefer_ids:
+                return iid
+    return matched[0]
+
+
+def _resolve_region_from_inpo21c(db: Session, inpo21c_region: str | None) -> int | None:
+    """인포21 region 문자열에서 DB region_id 반환.
+
+    '전국' 단독이면 None. '대전,충남' 처럼 복수면 DB에 존재하는 첫 번째 반환.
+    """
+    if not inpo21c_region:
+        return None
+    first_line = inpo21c_region.split("\n")[0].strip()
+    if not first_line or first_line == "전국":
+        return None
+    for part in first_line.split(","):
+        part = part.strip()
+        if part and part != "전국":
+            rid = _resolve_region_id(db, part)
+            if rid:
+                return rid
+    return None
 
 
 # ------------------------------------------------------------------ #
@@ -589,11 +667,70 @@ def sync_inpo21c_to_bids(db: Session) -> dict:
         """))
         inserted_new = r.rowcount
 
+        # 7. industry_id 보완 — inpo21c [대] 업종 태그 → DB industry_id
+        #    활성 IndustryFilter 업종을 우선 선택해 목록 노출 최대화
+        updated_industry = 0
+        try:
+            from ..models import IndustryFilter
+            active_ids: set[int] = {
+                f.industry_id
+                for f in db.query(IndustryFilter).filter(IndustryFilter.is_active == True).all()
+            }
+            # industry_id IS NULL 또는 일반업종(건축/토목)으로 잘못 분류된 경우 모두 갱신
+            # inpo21c에 [대] 전문업종이 있으면 더 정확하므로 우선 적용
+            rows_ind = db.execute(text("""
+                SELECT b.id, ib.industry
+                FROM inpo21c_bids ib
+                JOIN bids b ON b.announcement_no = ib.announcement_no
+                WHERE (
+                    b.industry_id IS NULL
+                    OR b.industry_id IN (
+                        SELECT id FROM industries
+                        WHERE name IN ('건축공사업', '토목공사업', '전문공사업')
+                    )
+                )
+                  AND ib.industry IS NOT NULL AND ib.industry != ''
+                  AND ib.industry LIKE '%[대]%'
+            """)).fetchall()
+            for bid_id, ind_str in rows_ind:
+                iid = _resolve_industry_from_inpo21c(db, ind_str, active_ids)
+                if iid:
+                    db.execute(
+                        text("UPDATE bids SET industry_id = :iid WHERE id = :bid_id"),
+                        {"iid": iid, "bid_id": bid_id},
+                    )
+                    updated_industry += 1
+        except Exception as _e:
+            logger.warning("industry_id 백필 실패: {}", _e)
+
+        # 8. region_id 보완 — inpo21c region 문자열 → DB region_id
+        updated_region = 0
+        try:
+            rows_reg = db.execute(text("""
+                SELECT b.id, ib.region
+                FROM inpo21c_bids ib
+                JOIN bids b ON b.announcement_no = ib.announcement_no
+                WHERE b.region_id IS NULL
+                  AND ib.region IS NOT NULL AND ib.region != ''
+                  AND ib.region != '전국'
+            """)).fetchall()
+            for bid_id, reg_str in rows_reg:
+                rid = _resolve_region_from_inpo21c(db, reg_str)
+                if rid:
+                    db.execute(
+                        text("UPDATE bids SET region_id = :rid WHERE id = :bid_id"),
+                        {"rid": rid, "bid_id": bid_id},
+                    )
+                    updated_region += 1
+        except Exception as _e:
+            logger.warning("region_id 백필 실패: {}", _e)
+
         db.commit()
         logger.info(
-            "inpo21c→bids 동기화 완료: base={}, estimated={}, open_date={}, a_value={}, participants={}, inserted_new={}",
+            "inpo21c→bids 동기화 완료: base={}, estimated={}, open_date={}, a_value={}, "
+            "participants={}, inserted_new={}, industry={}, region={}",
             updated_base, updated_estimated, updated_open, updated_a_value,
-            updated_participants, inserted_new,
+            updated_participants, inserted_new, updated_industry, updated_region,
         )
     except Exception as exc:
         db.rollback()
@@ -606,6 +743,8 @@ def sync_inpo21c_to_bids(db: Session) -> dict:
         "updated_a_value": updated_a_value,
         "updated_participants": updated_participants,
         "inserted_new_from_inpo21c": inserted_new,
+        "updated_industry_id": updated_industry,
+        "updated_region_id": updated_region,
     }
 
 
