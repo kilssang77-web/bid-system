@@ -794,6 +794,51 @@ def sync_inpo21c_notices_to_bids(db: Session) -> dict:
     stats = {}
 
     try:
+        # 0. inpo21c_bid_notices에만 있는 신규 공고 → bids INSERT
+        # title이 있는 경우만 삽입 (NOT NULL 제약)
+        db.execute(text("""
+            INSERT INTO agencies (name)
+            SELECT DISTINCT n.agency_name
+            FROM inpo21c_bid_notices n
+            WHERE n.agency_name IS NOT NULL AND n.agency_name != ''
+              AND n.title IS NOT NULL AND n.title != ''
+              AND NOT EXISTS (
+                SELECT 1 FROM agencies a WHERE a.name = n.agency_name
+              )
+            ON CONFLICT DO NOTHING
+        """))
+
+        r = db.execute(text("""
+            INSERT INTO bids
+                (announcement_no, title, agency_id, base_amount, estimated_price,
+                 bid_open_date, bid_close_date, min_bid_rate, yega_method,
+                 registration_deadline, status, source)
+            SELECT
+                SPLIT_PART(n.announcement_no, '-', 1),
+                n.title,
+                a.id,
+                COALESCE(n.base_amount, 0),
+                n.estimated_amount,
+                n.open_datetime,
+                n.bid_deadline,
+                CASE WHEN n.min_bid_rate IS NOT NULL THEN n.min_bid_rate / 100.0 END,
+                n.yega_method,
+                n.reg_deadline,
+                'active',
+                'inpo21c'
+            FROM inpo21c_bid_notices n
+            JOIN agencies a ON a.name = n.agency_name
+            WHERE n.announcement_no IS NOT NULL
+              AND n.title IS NOT NULL AND n.title != ''
+              AND NOT EXISTS (
+                SELECT 1 FROM bids b
+                WHERE b.announcement_no = SPLIT_PART(n.announcement_no, '-', 1)
+              )
+            ON CONFLICT (announcement_no) DO NOTHING
+        """))
+        stats["inserted_new"] = r.rowcount
+        db.commit()
+
         # base_amount 보완 (0인 경우)
         r = db.execute(text("""
             UPDATE bids b

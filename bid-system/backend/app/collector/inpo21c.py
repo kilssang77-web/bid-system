@@ -283,6 +283,7 @@ def _ensure_tables(db: Session) -> None:
         )
     """))
     db.execute(text("ALTER TABLE inpo21c_bid_notices ADD COLUMN IF NOT EXISTS a_value BIGINT"))
+    db.execute(text("ALTER TABLE inpo21c_bid_notices ADD COLUMN IF NOT EXISTS title VARCHAR(500)"))
     db.execute(text("ALTER TABLE inpo21c_bids ADD COLUMN IF NOT EXISTS a_value BIGINT"))
     db.execute(text("CREATE INDEX IF NOT EXISTS idx_inpo21c_notices_announcement ON inpo21c_bid_notices(announcement_no)"))
     db.commit()
@@ -475,8 +476,20 @@ def _parse_bid_notice(html: str) -> dict | None:
         yega_rmin = int(m_range.group(1))
         yega_rmax = int(m_range.group(2))
 
+    title = (
+        pairs.get("공고명", "") or pairs.get("입찰공고명", "") or
+        pairs.get("공사명", "") or pairs.get("용역명", "") or
+        pairs.get("물품명", "")
+    ).strip()
+    # fallback: <title> 태그에서 추출
+    if not title:
+        m_title = re.search(r"<title>([^<]+)</title>", html, re.IGNORECASE)
+        if m_title:
+            title = m_title.group(1).strip().replace(" - 입찰공고", "").replace("인포21", "").strip()
+
     return {
         "announcement_no":  re.sub(r"-\d+$", "", pairs.get("공고번호", "").strip()),
+        "title":            title,
         "industry":         pairs.get("업종", "").strip(),
         "region":           pairs.get("지역", "").strip(),
         "agency_name":      (pairs.get("수요기관", "") or pairs.get("발주기관", "")).strip(),
@@ -579,19 +592,20 @@ def _upsert_bid_notice(db: Session, bid_id: str, data: dict) -> None:
     try:
         db.execute(text("""
             INSERT INTO inpo21c_bid_notices
-                (inpo21c_bid_id, announcement_no, industry, region, agency_name,
+                (inpo21c_bid_id, announcement_no, title, industry, region, agency_name,
                  yega_method, yega_draw_count, yega_total_count,
                  yega_range_min, yega_range_max, min_bid_rate, contract_method,
                  reg_deadline, bid_deadline, open_datetime, base_amount, estimated_amount,
                  a_value, updated_at)
             VALUES
-                (:bid_id, :announcement_no, :industry, :region, :agency_name,
+                (:bid_id, :announcement_no, :title, :industry, :region, :agency_name,
                  :yega_method, :yega_draw_count, :yega_total_count,
                  :yega_range_min, :yega_range_max, :min_bid_rate, :contract_method,
                  :reg_deadline, :bid_deadline, :open_datetime, :base_amount, :estimated_amount,
                  :a_value, now())
             ON CONFLICT (inpo21c_bid_id) DO UPDATE SET
                 announcement_no  = EXCLUDED.announcement_no,
+                title            = COALESCE(EXCLUDED.title, inpo21c_bid_notices.title),
                 yega_method      = EXCLUDED.yega_method,
                 yega_draw_count  = EXCLUDED.yega_draw_count,
                 yega_total_count = EXCLUDED.yega_total_count,
