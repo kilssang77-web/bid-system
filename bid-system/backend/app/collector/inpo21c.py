@@ -1146,7 +1146,14 @@ def collect_bid_notices_inpo21c(
 
     for list_url, referer_qs in pages_to_scan:
         html    = _fetch(list_url, cookie)
-        bid_ids = list(dict.fromkeys(re.findall(r"/bid/view/con/([^\"]+)\"", html)))
+        # 목록 페이지에서 (bid_id, title) 동시 추출
+        list_matches = re.findall(
+            r"/bid/view/con/([^\"]+)\"[^>]*>\s*([^<]+?)\s*</a>", html
+        )
+        list_title_map = {m[0]: _txt(m[1]).strip() for m in list_matches if m[1].strip()}
+        bid_ids = list(dict.fromkeys(list_title_map.keys()))
+        if not bid_ids:
+            bid_ids = list(dict.fromkeys(re.findall(r"/bid/view/con/([^\"]+)\"", html)))
         if not bid_ids:
             # 지역 모드는 페이지 없으면 종료, division 모드는 다음 division으로
             if region:
@@ -1163,6 +1170,9 @@ def collect_bid_notices_inpo21c(
                                  referer=f"{BASE}/bid/con?{referer_qs}")
             notice_data = _parse_bid_notice(detail_html)
             if notice_data:
+                # detail 파싱 title이 없으면 목록에서 가져온 title 사용
+                if not notice_data.get("title"):
+                    notice_data["title"] = list_title_map.get(bid_id, "")
                 is_rescrape = db.execute(
                     text("SELECT 1 FROM inpo21c_bid_notices WHERE inpo21c_bid_id=:id"),
                     {"id": bid_id},
