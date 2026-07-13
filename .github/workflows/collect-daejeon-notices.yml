@@ -43,37 +43,28 @@ jobs:
           echo "total=$TOTAL" >> $GITHUB_OUTPUT
           echo "수집 전 대전 공고: $TOTAL 건"
 
-      - name: inpo21c 지역 수집 트리거
+      - name: inpo21c 지역 수집 (동기 실행 — 완료까지 대기)
         run: |
           REGION="${{ github.event.inputs.region || '대전' }}"
           PAGES="${{ github.event.inputs.max_pages || '30' }}"
           REGION_ENC=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$REGION'))")
+          echo "수집 시작: 지역=$REGION, 페이지=$PAGES"
           RESP=$(curl -sf -X POST \
             "${{ secrets.BACKEND_URL }}/api/v1/admin/inpo21c/collect-notices?region=${REGION_ENC}&max_pages=${PAGES}" \
             -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
-            --max-time 30)
-          echo "트리거 응답: $RESP"
-
-      - name: 수집 완료 대기 (서버 슬립 방지 핑 포함)
-        run: |
-          TOKEN="${{ secrets.ADMIN_TOKEN }}"
-          PREV_LOG="2026-07-10T07:31:54.399848Z"
-          echo "수집 완료 대기 중 (최대 20분)..."
-          for i in $(seq 1 40); do
-            sleep 30
-            # 서버 슬립 방지 핑
-            curl -sf "${{ secrets.BACKEND_URL }}/api/v1/bids?size=1" \
-              -H "Authorization: Bearer $TOKEN" -o /dev/null --max-time 10 || true
-            # 새 로그 확인
-            LATEST=$(curl -sf "${{ secrets.BACKEND_URL }}/api/v1/admin/collection-logs?limit=1" \
-              -H "Authorization: Bearer $TOKEN" --max-time 10 \
-              | python3 -c "import sys,json; logs=json.load(sys.stdin); print(logs[0]['collected_at'] if logs else '')" 2>/dev/null || echo "")
-            echo "  [$i/40] 최신 로그: $LATEST"
-            if [ "$LATEST" != "$PREV_LOG" ] && [ -n "$LATEST" ]; then
-              echo "수집 완료 감지"
-              break
-            fi
-          done
+            --max-time 600)
+          echo "수집 완료:"
+          echo "$RESP" | python3 -c "
+import sys, json
+r = json.load(sys.stdin)
+res = r.get('result', {})
+sync = res.get('sync', {})
+print(f'  신규 수집: {res.get(\"notices\",0)}건 / 스킵: {res.get(\"skipped\",0)}건')
+print(f'  INSERT: {sync.get(\"inserted_new\",\"N/A\")}건 신규 bids 추가')
+print(f'  region_id 동기화: {sync.get(\"region_id_from_notices\",0)}건')
+if sync.get(\"insert_error\"):
+    print(f'  INSERT 오류: {sync[\"insert_error\"][:100]}')
+" 2>/dev/null || echo "응답 파싱 실패: $RESP"
 
       - name: 수집 결과 확인
         run: |
