@@ -805,7 +805,6 @@ def sync_inpo21c_notices_to_bids(db: Session) -> dict:
               AND NOT EXISTS (
                 SELECT 1 FROM agencies a WHERE a.name = n.agency_name
               )
-            ON CONFLICT DO NOTHING
         """))
 
         r = db.execute(text("""
