@@ -725,12 +725,32 @@ def sync_inpo21c_to_bids(db: Session) -> dict:
         except Exception as _e:
             logger.warning("region_id 백필 실패: {}", _e)
 
+        # 9. 제목 키워드 추론 — inpo21c에도 없어 Step 7 이후에도 NULL인 공고 최종 보완
+        updated_title = 0
+        try:
+            rows_title = db.execute(text("""
+                SELECT id, title FROM bids
+                WHERE industry_id IS NULL
+                  AND title IS NOT NULL AND title != ''
+                LIMIT 30000
+            """)).fetchall()
+            for bid_id, title in rows_title:
+                iid = _infer_industry_from_title(db, title)
+                if iid:
+                    db.execute(
+                        text("UPDATE bids SET industry_id = :iid WHERE id = :bid_id"),
+                        {"iid": iid, "bid_id": bid_id},
+                    )
+                    updated_title += 1
+        except Exception as _e:
+            logger.warning("제목 키워드 백필 실패: {}", _e)
+
         db.commit()
         logger.info(
             "inpo21c→bids 동기화 완료: base={}, estimated={}, open_date={}, a_value={}, "
-            "participants={}, inserted_new={}, industry={}, region={}",
+            "participants={}, inserted_new={}, industry={}, region={}, title_infer={}",
             updated_base, updated_estimated, updated_open, updated_a_value,
-            updated_participants, inserted_new, updated_industry, updated_region,
+            updated_participants, inserted_new, updated_industry, updated_region, updated_title,
         )
     except Exception as exc:
         db.rollback()
@@ -745,6 +765,7 @@ def sync_inpo21c_to_bids(db: Session) -> dict:
         "inserted_new_from_inpo21c": inserted_new,
         "updated_industry_id": updated_industry,
         "updated_region_id": updated_region,
+        "updated_title_infer": updated_title,
     }
 
 
