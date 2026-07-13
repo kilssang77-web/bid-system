@@ -1103,11 +1103,18 @@ def collect_inpo21c_by_region(
     def _run():
         from ...database import SessionLocal
         from ...collector.inpo21c import collect_inpo21c_by_region as _collect
+        from ...collector.service import sync_inpo21c_to_bids
         from ...collector.scheduler import _trigger_ml_retrain
         _db = SessionLocal()
         try:
             result = _collect(_db, region=region_name, industry=industry_code, max_pages=max_pages)
             logger.info("지역수집 완료 [%s/%s]: %s", region_name, industry_code or "전업종", result)
+            # inpo21c → bids 동기화 (신규 공고 INSERT + 기존 공고 보강)
+            try:
+                sync_result = sync_inpo21c_to_bids(_db)
+                logger.info("지역수집 후 bids 동기화 완료: %s", sync_result)
+            except Exception as _sync_e:
+                logger.warning("지역수집 후 bids 동기화 실패: %s", _sync_e)
             if result.get("bids", 0) > 0:
                 _trigger_ml_retrain(f"inpo21c 지역수집 완료 [{region_name}]")
         finally:

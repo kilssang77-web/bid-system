@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import QuickJournalModal from '@/components/QuickJournalModal'
 import ServiceManualModal from '@/components/ServiceManualModal'
+import TopProgressBar from '@/components/TopProgressBar'
 
 /* ───────────────────────────────────────────────────────────
    NAV 구조 — 낙찰률 극대화 중심 10 핵심 항목
@@ -208,6 +209,7 @@ export default function AppLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <TopProgressBar />
 
       {/* ══════════════════════════════════════
           모바일 오버레이 (사이드 드로어용)

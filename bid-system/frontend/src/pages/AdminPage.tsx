@@ -278,12 +278,14 @@ export default function AdminPage() {
   const regionCollectMutation = useMutation({
     mutationFn: () => adminApi.collectByRegion(Number(regionCode)),
     onSuccess: (data) => {
-      setRegionCollectMsg({ type: 'success', text: data.message ?? '지역 수집이 시작되었습니다.' })
-      setTimeout(() => setRegionCollectMsg(null), 8000)
+      setRegionCollectMsg({ type: 'success', text: data.message ?? '지역 수집이 시작되었습니다. 수집 완료 후 bids 동기화가 자동 실행됩니다.' })
     },
-    onError: () => {
-      setRegionCollectMsg({ type: 'error', text: '지역 수집 요청 실패' })
-      setTimeout(() => setRegionCollectMsg(null), 5000)
+    onError: (err: unknown) => {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      const msg = status === 401 || status === 403
+        ? 'inpo21c 쿠키가 만료됐습니다. 연동 상태를 확인하세요.'
+        : '지역 수집 요청 실패 — 백엔드 로그를 확인하세요.'
+      setRegionCollectMsg({ type: 'error', text: msg })
     },
   })
   const syncInpo21cMutation = useMutation({
@@ -1334,13 +1336,20 @@ export default function AdminPage() {
 
                     {/* 지역별 수동 수집 */}
                     <div className="border-t border-slate-100 pt-4 space-y-3">
+                      {/* inpo21c 쿠키 미설정 경고 */}
+                      {inpoStatus && !inpoStatus.can_collect && (
+                        <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                          <span>inpo21c 쿠키가 만료됐거나 미설정 상태입니다. 지역 수집이 실패할 수 있습니다.</span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-xs font-semibold text-slate-700">지역별 즉시 수집</p>
-                          <p className="text-xs text-slate-500 mt-0.5">선택한 지역의 전참여자·복수예가를 즉시 수집합니다</p>
+                          <p className="text-xs text-slate-500 mt-0.5">선택 지역 전참여자·복수예가 수집 후 공고 자동 동기화</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <Select value={regionCode} onValueChange={setRegionCode}>
+                          <Select value={regionCode} onValueChange={(v) => { setRegionCode(v); setRegionCollectMsg(null) }}>
                             <SelectTrigger className="w-24 h-8 text-xs">
                               <SelectValue />
                             </SelectTrigger>
@@ -1369,22 +1378,25 @@ export default function AdminPage() {
                             size="sm"
                             className="gap-1.5 bg-violet-600 hover:bg-violet-700 h-8 text-xs"
                             disabled={regionCollectMutation.isPending || inpoProgress?.running}
-                            onClick={() => regionCollectMutation.mutate()}
+                            onClick={() => { setRegionCollectMsg(null); regionCollectMutation.mutate() }}
                           >
                             {regionCollectMutation.isPending
                               ? <Loader2 className="h-3 w-3 animate-spin" />
                               : <Download className="h-3 w-3" />}
-                            수집
+                            {regionCollectMutation.isPending ? '요청 중...' : '수집'}
                           </Button>
                         </div>
                       </div>
                       {regionCollectMsg && (
-                        <div className={cn('text-sm px-3 py-2 rounded-lg border',
+                        <div className={cn('flex items-start gap-2 text-sm px-3 py-2.5 rounded-lg border',
                           regionCollectMsg.type === 'success'
                             ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
                             : 'text-red-700 bg-red-50 border-red-200'
                         )}>
-                          {regionCollectMsg.text}
+                          {regionCollectMsg.type === 'success'
+                            ? <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                            : <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />}
+                          <span>{regionCollectMsg.text}</span>
                         </div>
                       )}
                     </div>
