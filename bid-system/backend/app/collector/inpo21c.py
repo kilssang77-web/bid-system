@@ -24,17 +24,40 @@ def _record_log(db: Session, collect_type: str, success: int, fail: int,
                 duration: float, error_summary: str | None = None,
                 detail: dict | None = None):
     from app.models import CollectionLog
-    log = CollectionLog(
-        collect_type=collect_type,
-        collected_at=datetime.now(tz=timezone.utc),
-        success_count=success,
-        fail_count=fail,
-        duration_sec=round(duration, 2),
-        error_summary=error_summary,
-        detail_json=json.dumps(detail, ensure_ascii=False) if detail else None,
-    )
-    db.add(log)
-    db.commit()
+    from sqlalchemy import text as _text
+    try:
+        log = CollectionLog(
+            collect_type=collect_type,
+            collected_at=datetime.now(tz=timezone.utc),
+            success_count=success,
+            fail_count=fail,
+            duration_sec=round(duration, 2),
+            error_summary=error_summary,
+            detail_json=json.dumps(detail, ensure_ascii=False) if detail else None,
+        )
+        db.add(log)
+        db.commit()
+    except Exception as _exc:
+        db.rollback()
+        # CockroachDB 시퀀스 desync → sequence 리셋 후 재시도
+        try:
+            db.execute(_text(
+                "SELECT setval('collection_logs_id_seq', "
+                "(SELECT MAX(id) FROM collection_logs) + 1, false)"
+            ))
+            db.commit()
+            db.add(CollectionLog(
+                collect_type=collect_type,
+                collected_at=datetime.now(tz=timezone.utc),
+                success_count=success, fail_count=fail,
+                duration_sec=round(duration, 2),
+                error_summary=error_summary,
+                detail_json=json.dumps(detail, ensure_ascii=False) if detail else None,
+            ))
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.warning("_record_log 저장 실패 (무시): {}", _exc)
 
 BASE = "https://cloud.info21c.net"
 UA   = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
