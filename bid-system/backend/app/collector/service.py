@@ -822,7 +822,7 @@ def sync_inpo21c_notices_to_bids(db: Session) -> dict:
                 CASE WHEN n.min_bid_rate IS NOT NULL THEN n.min_bid_rate / 100.0 END,
                 n.yega_method,
                 n.reg_deadline,
-                'active',
+                'open',
                 'inpo21c'
             FROM inpo21c_bid_notices n
             JOIN agencies a ON a.name = n.agency_name
