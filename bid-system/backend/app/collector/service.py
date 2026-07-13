@@ -793,9 +793,8 @@ def sync_inpo21c_notices_to_bids(db: Session) -> dict:
     from sqlalchemy import text
     stats = {}
 
+    # 0. inpo21c_bid_notices에만 있는 신규 공고 → bids INSERT (INSERT 실패해도 UPDATE는 계속)
     try:
-        # 0. inpo21c_bid_notices에만 있는 신규 공고 → bids INSERT
-        # title이 있는 경우만 삽입 (NOT NULL 제약)
         db.execute(text("""
             INSERT INTO agencies (name)
             SELECT DISTINCT n.agency_name
@@ -837,7 +836,12 @@ def sync_inpo21c_notices_to_bids(db: Session) -> dict:
         """))
         stats["inserted_new"] = r.rowcount
         db.commit()
+    except Exception as _ins_exc:
+        db.rollback()
+        stats["inserted_new"] = -1
+        logger.warning("notices→bids INSERT 실패 (무시, UPDATE는 계속): %s", _ins_exc)
 
+    try:
         # base_amount 보완 (0인 경우)
         r = db.execute(text("""
             UPDATE bids b
