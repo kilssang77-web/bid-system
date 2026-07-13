@@ -1054,14 +1054,17 @@ def collect_incomplete_participants(db: Session, min_parts: int = 3, max_bids: i
     return {"filled": filled, "failed": failed, "total": len(target_ids)}
 
 
-def collect_bid_notices_inpo21c(db: Session, max_pages: int = 5) -> dict:
+def collect_bid_notices_inpo21c(
+    db: Session,
+    max_pages: int = 5,
+    region: str = "",
+    industry: str = "",
+) -> dict:
     """
     입찰공고 중 목록(/bid/con)에서 개찰 전 사전정보 수집.
 
-    개선 사항:
-      - division=1,2,3 전체 수집 (기존: division=1만)
-      - A값 없는 기존 공고 재수집 (A값 발표 지연 대응)
-      - 수집 완료 후 bids 테이블 자동 동기화
+    region 파라미터가 있으면 search_type=manual&search_loc={code} 필터 사용.
+    없으면 기존 division=1,2,3 전국 수집.
     """
     from app.config import get_settings
     settings = get_settings()
@@ -1078,7 +1081,6 @@ def collect_bid_notices_inpo21c(db: Session, max_pages: int = 5) -> dict:
     _ensure_tables(db)
 
     # a_value가 있는 건 = 완전 수집 완료 → 스킵
-    # a_value가 없는 건 = 재수집 대상 (A값 발표 대기 중일 수 있음)
     existing_complete = {r[0] for r in db.execute(
         text("SELECT inpo21c_bid_id FROM inpo21c_bid_notices WHERE a_value IS NOT NULL")
     ).fetchall()}
@@ -1086,37 +1088,57 @@ def collect_bid_notices_inpo21c(db: Session, max_pages: int = 5) -> dict:
     total_notices = skipped = rescrape = 0
     processed_this_run: set[str] = set()
 
-    for division in (1, 2, 3):
-        for page in range(1, max_pages + 1):
-            html    = _fetch(f"{BASE}/bid/con?division={division}&page={page}", cookie)
-            bid_ids = list(dict.fromkeys(re.findall(r"/bid/view/con/([^\"]+)\"", html)))
-            if not bid_ids:
+    # 지역 필터 모드: search_type=manual&search_loc={code}
+    if region:
+        region_code  = _REGION_CODES.get(region, 0)
+        industry_code = _INDUSTRY_CODES.get(industry, industry)
+        base_params  = f"search_type=manual&search_loc={region_code}"
+        if industry_code:
+            base_params += f"&search_code={industry_code}"
+        pages_to_scan: list[tuple[str, str]] = [
+            (f"{BASE}/bid/con?{base_params}&page={p}", base_params)
+            for p in range(1, max_pages + 1)
+        ]
+    else:
+        # 전국 수집 — division 1/2/3 순회
+        pages_to_scan = [
+            (f"{BASE}/bid/con?division={d}&page={p}", f"division={d}")
+            for d in (1, 2, 3)
+            for p in range(1, max_pages + 1)
+        ]
+
+    for list_url, referer_qs in pages_to_scan:
+        html    = _fetch(list_url, cookie)
+        bid_ids = list(dict.fromkeys(re.findall(r"/bid/view/con/([^\"]+)\"", html)))
+        if not bid_ids:
+            # 지역 모드는 페이지 없으면 종료, division 모드는 다음 division으로
+            if region:
                 break
+            continue
 
-            for bid_id in bid_ids:
-                # 이미 완전 수집됐거나 이번 실행에서 처리한 건 스킵
-                if bid_id in existing_complete or bid_id in processed_this_run:
-                    skipped += 1
-                    continue
+        for bid_id in bid_ids:
+            if bid_id in existing_complete or bid_id in processed_this_run:
+                skipped += 1
+                continue
 
-                detail_url  = f"{BASE}/bid/view/con/{bid_id}"
-                detail_html = _fetch(detail_url, cookie,
-                                     referer=f"{BASE}/bid/con?division={division}")
-                notice_data = _parse_bid_notice(detail_html)
-                if notice_data:
-                    is_rescrape = db.execute(
-                        text("SELECT 1 FROM inpo21c_bid_notices WHERE inpo21c_bid_id=:id"),
-                        {"id": bid_id},
-                    ).fetchone() is not None
-                    _upsert_bid_notice(db, bid_id, notice_data)
-                    total_notices += 1
-                    if is_rescrape:
-                        rescrape += 1
-                    if notice_data.get("a_value"):
-                        existing_complete.add(bid_id)
+            detail_url  = f"{BASE}/bid/view/con/{bid_id}"
+            detail_html = _fetch(detail_url, cookie,
+                                 referer=f"{BASE}/bid/con?{referer_qs}")
+            notice_data = _parse_bid_notice(detail_html)
+            if notice_data:
+                is_rescrape = db.execute(
+                    text("SELECT 1 FROM inpo21c_bid_notices WHERE inpo21c_bid_id=:id"),
+                    {"id": bid_id},
+                ).fetchone() is not None
+                _upsert_bid_notice(db, bid_id, notice_data)
+                total_notices += 1
+                if is_rescrape:
+                    rescrape += 1
+                if notice_data.get("a_value"):
+                    existing_complete.add(bid_id)
 
-                processed_this_run.add(bid_id)
-                time.sleep(0.3)
+            processed_this_run.add(bid_id)
+            time.sleep(0.3)
 
     # 수집 완료 후 bids 테이블 자동 동기화
     sync_stats: dict = {}
@@ -1126,14 +1148,15 @@ def collect_bid_notices_inpo21c(db: Session, max_pages: int = 5) -> dict:
     except Exception as e:
         logger.warning("notices→bids 자동 동기화 실패: %s", e)
 
+    mode_label = f"region={region}" if region else "divisions=1,2,3"
     logger.info(
-        "inpo21c 입찰공고 수집 완료: %d건 신규/재수집(%d재수집), %d건 스킵, 동기화=%s",
-        total_notices, rescrape, skipped, sync_stats,
+        "inpo21c 입찰공고 수집 완료 [%s]: %d건 신규/재수집(%d재수집), %d건 스킵, 동기화=%s",
+        mode_label, total_notices, rescrape, skipped, sync_stats,
     )
     _record_log(db, "inpo21c_notices", total_notices, 0,
                 time.time() - _started,
                 detail={"source": "inpo21c.net/bid", "label": "입찰공고 사전정보",
-                        "endpoint": "/bid/con", "divisions": "1,2,3",
+                        "endpoint": "/bid/con", "mode": mode_label,
                         "max_pages": max_pages, "notices": total_notices,
                         "rescrape": rescrape, "skipped": skipped,
                         "sync": sync_stats})

@@ -999,27 +999,27 @@ def trigger_inpo21c_national(
 def trigger_inpo21c_bid_notices(
     background_tasks: BackgroundTasks,
     max_pages: int = 5,
+    region: str = "",
     _: User = Depends(require_role("admin")),
 ):
     """inpo21c 입찰공고 사전정보 수집 + bids 자동 동기화 (백그라운드).
 
-    G2B BidPublicInfoService02 대체: info21c 공고 → bids 테이블 자동 등록.
+    region 파라미터 지정 시 해당 지역 필터로 수집 (예: region=대전).
+    미지정 시 전국 division 수집.
     """
     def _run():
         from ...database import SessionLocal
         from ...collector.inpo21c import collect_bid_notices_inpo21c
-        from ...services import InpoNoticesSyncService
         _db = SessionLocal()
         try:
-            result = collect_bid_notices_inpo21c(_db, max_pages=max_pages)
-            logger.info("inpo21c 입찰공고 수집 완료: %s", result)
-            sync = InpoNoticesSyncService().sync(_db)
-            logger.info("inpo21c → bids 동기화: %s", sync)
+            result = collect_bid_notices_inpo21c(_db, max_pages=max_pages, region=region)
+            logger.info("inpo21c 입찰공고 수집 완료 [region=%s]: %s", region or "전국", result)
         finally:
             _db.close()
 
     background_tasks.add_task(_run)
-    return {"message": f"inpo21c 입찰공고 수집 + bids 동기화 시작됨 (최대 {max_pages}페이지)"}
+    label = f"지역={region}" if region else "전국"
+    return {"message": f"inpo21c 입찰공고 수집 시작됨 [{label}, 최대 {max_pages}페이지]"}
 
 
 @router.post("/inpo21c/rescrape-titles")

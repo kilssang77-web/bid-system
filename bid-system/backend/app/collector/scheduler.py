@@ -135,6 +135,25 @@ def run_bid_notices_inpo21c_job() -> None:
         db.close()
 
 
+def run_region_bid_notices_job(region: str = "대전") -> None:
+    """지역 필터 입찰공고 수집 (search_type=manual&search_loc).
+
+    인포21 /bid/con 에서 지역별 현재 입찰공고를 수집하여 industry_id/region_id를
+    올바르게 저장. G2B API indutyNm=NULL 수의계약·소액공고 누락 문제를 근본 해결.
+    """
+    from app.database import SessionLocal
+    from app.collector.inpo21c import collect_bid_notices_inpo21c
+
+    db = SessionLocal()
+    try:
+        result = collect_bid_notices_inpo21c(db, max_pages=30, region=region)
+        logger.info("지역 입찰공고 수집 완료 [%s]: %s", region, result)
+    except Exception as exc:
+        logger.error("지역 입찰공고 수집 실패 [%s]: %s", region, exc)
+    finally:
+        db.close()
+
+
 def run_inpo21c_job() -> None:
     """inpo21c 전 참여자 + 복수예가 + 공고헤더 수집 (매일 20:00 KST).
 
@@ -1153,6 +1172,15 @@ def create_scheduler() -> BackgroundScheduler:
         trigger=CronTrigger(hour=20, minute=30, timezone="Asia/Seoul"),
         id="auto_register_inpo21c_daily",
         name="inpo21c 참여 이력 자동 등록 (매일 20:30 KST)",
+        replace_existing=True,
+        max_instances=1,
+    )
+    scheduler.add_job(
+        run_region_bid_notices_job,
+        trigger=CronTrigger(hour=7, minute=15, timezone="Asia/Seoul"),
+        args=["대전"],
+        id="collect_daejeon_notices_daily",
+        name="대전 지역 입찰공고 수집 — inpo21c /bid/con (매일 07:15 KST)",
         replace_existing=True,
         max_instances=1,
     )

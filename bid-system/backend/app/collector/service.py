@@ -878,6 +878,50 @@ def sync_inpo21c_notices_to_bids(db: Session) -> dict:
         stats["a_value_from_notices"] = r.rowcount
 
         db.commit()
+
+        # industry_id / region_id 보완 — inpo21c_bid_notices.industry / .region
+        # (commit 후 별도 처리: 실패해도 위 동기화 결과는 보존)
+        rows_ir = db.execute(text("""
+            SELECT b.id, n.industry, n.region
+            FROM bids b
+            JOIN inpo21c_bid_notices n
+              ON SPLIT_PART(n.announcement_no, '-', 1) = b.announcement_no
+            WHERE (b.industry_id IS NULL OR b.region_id IS NULL)
+              AND (
+                (n.industry IS NOT NULL AND n.industry != '')
+                OR (n.region IS NOT NULL AND n.region != '')
+              )
+        """)).fetchall()
+
+        from app.models import IndustryFilter
+        active_ids = [
+            f.industry_id for f in db.query(IndustryFilter).filter(IndustryFilter.is_active == True).all()
+        ] or None
+
+        ind_updated = reg_updated = 0
+        for bid_id, ind_str, reg_str in rows_ir:
+            if ind_str:
+                iid = _resolve_industry_from_inpo21c(db, ind_str, active_ids)
+                if iid:
+                    db.execute(
+                        text("UPDATE bids SET industry_id = :iid WHERE id = :bid_id AND industry_id IS NULL"),
+                        {"iid": iid, "bid_id": bid_id},
+                    )
+                    ind_updated += 1
+            if reg_str:
+                rid = _resolve_region_from_inpo21c(db, reg_str)
+                if rid:
+                    db.execute(
+                        text("UPDATE bids SET region_id = :rid WHERE id = :bid_id AND region_id IS NULL"),
+                        {"rid": rid, "bid_id": bid_id},
+                    )
+                    reg_updated += 1
+
+        if ind_updated or reg_updated:
+            db.commit()
+        stats["industry_id_from_notices"] = ind_updated
+        stats["region_id_from_notices"]   = reg_updated
+
         logger.info("inpo21c_notices→bids 동기화 완료: {}", stats)
     except Exception as exc:
         db.rollback()
