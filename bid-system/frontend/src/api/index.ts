@@ -213,6 +213,8 @@ export const adminApi = {
     api.get('/admin/inpo21c/status').then((r) => r.data),
   triggerInpo21cCollect: (maxPages = 4): Promise<{ message: string }> =>
     api.post('/admin/inpo21c/collect', null, { params: { max_pages: maxPages } }).then((r) => r.data),
+  collectByRegion: (regionCode: number, maxPages = 30): Promise<{ message: string }> =>
+    api.post('/admin/inpo21c/collect-by-region', null, { params: { region_code: regionCode, max_pages: maxPages } }).then((r) => r.data),
   inpo21cProgress: (): Promise<{
     running: boolean; job_type: string | null
     page: number; max_pages: number; total_pages: number

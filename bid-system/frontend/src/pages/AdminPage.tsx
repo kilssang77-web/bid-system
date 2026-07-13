@@ -220,6 +220,8 @@ export default function AdminPage() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [triggerMsg, setTriggerMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [inpoCollectMsg, setInpoCollectMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [regionCode, setRegionCode] = useState('4')
+  const [regionCollectMsg, setRegionCollectMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [selectedLog, setSelectedLog] = useState<CollectionLogOut | null>(null)
   const [logDays, setLogDays] = useState(7)
 
@@ -273,6 +275,17 @@ export default function AdminPage() {
   })
 
   const [syncMsg, setSyncMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const regionCollectMutation = useMutation({
+    mutationFn: () => adminApi.collectByRegion(Number(regionCode)),
+    onSuccess: (data) => {
+      setRegionCollectMsg({ type: 'success', text: data.message ?? '지역 수집이 시작되었습니다.' })
+      setTimeout(() => setRegionCollectMsg(null), 8000)
+    },
+    onError: () => {
+      setRegionCollectMsg({ type: 'error', text: '지역 수집 요청 실패' })
+      setTimeout(() => setRegionCollectMsg(null), 5000)
+    },
+  })
   const syncInpo21cMutation = useMutation({
     mutationFn: () => adminApi.syncInpo21cToBids(),
     onSuccess: (data) => {
@@ -1318,6 +1331,63 @@ export default function AdminPage() {
                         {inpoCollectMsg.text}
                       </div>
                     )}
+
+                    {/* 지역별 수동 수집 */}
+                    <div className="border-t border-slate-100 pt-4 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-slate-700">지역별 즉시 수집</p>
+                          <p className="text-xs text-slate-500 mt-0.5">선택한 지역의 전참여자·복수예가를 즉시 수집합니다</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Select value={regionCode} onValueChange={setRegionCode}>
+                            <SelectTrigger className="w-24 h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[
+                                { code: '0',  label: '전국' },
+                                { code: '1',  label: '서울' },
+                                { code: '2',  label: '부산' },
+                                { code: '3',  label: '광주' },
+                                { code: '4',  label: '대전' },
+                                { code: '5',  label: '인천' },
+                                { code: '6',  label: '대구' },
+                                { code: '7',  label: '울산' },
+                                { code: '8',  label: '경기' },
+                                { code: '9',  label: '강원' },
+                                { code: '10', label: '충북' },
+                                { code: '11', label: '충남' },
+                                { code: '12', label: '경북' },
+                                { code: '13', label: '경남' },
+                              ].map(({ code, label }) => (
+                                <SelectItem key={code} value={code} className="text-xs">{label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            size="sm"
+                            className="gap-1.5 bg-violet-600 hover:bg-violet-700 h-8 text-xs"
+                            disabled={regionCollectMutation.isPending || inpoProgress?.running}
+                            onClick={() => regionCollectMutation.mutate()}
+                          >
+                            {regionCollectMutation.isPending
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : <Download className="h-3 w-3" />}
+                            수집
+                          </Button>
+                        </div>
+                      </div>
+                      {regionCollectMsg && (
+                        <div className={cn('text-sm px-3 py-2 rounded-lg border',
+                          regionCollectMsg.type === 'success'
+                            ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                            : 'text-red-700 bg-red-50 border-red-200'
+                        )}>
+                          {regionCollectMsg.text}
+                        </div>
+                      )}
+                    </div>
 
                     {/* inpo21c → bids 동기화 */}
                     <div className="border-t border-slate-100 pt-4 flex items-center justify-between gap-3">
