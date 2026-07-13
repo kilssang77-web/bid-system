@@ -839,6 +839,7 @@ def sync_inpo21c_notices_to_bids(db: Session) -> dict:
     except Exception as _ins_exc:
         db.rollback()
         stats["inserted_new"] = -1
+        stats["insert_error"] = str(_ins_exc)[:300]
         logger.warning("notices→bids INSERT 실패 (무시, UPDATE는 계속): %s", _ins_exc)
 
     try:
