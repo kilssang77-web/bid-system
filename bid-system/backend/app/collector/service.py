@@ -725,18 +725,25 @@ def sync_inpo21c_to_bids(db: Session) -> dict:
         except Exception as _e:
             logger.warning("region_id 백필 실패: {}", _e)
 
-        # 9. 제목 키워드 추론 — inpo21c에도 없어 Step 7 이후에도 NULL인 공고 최종 보완
+        # 9. 제목 키워드 추론 — NULL이거나 일반 업종(건축/토목/전문)으로 잘못 분류된 공고 보완
         updated_title = 0
         try:
             rows_title = db.execute(text("""
-                SELECT id, title FROM bids
-                WHERE industry_id IS NULL
-                  AND title IS NOT NULL AND title != ''
-                LIMIT 30000
+                SELECT b.id, b.title, b.industry_id
+                FROM bids b
+                WHERE (
+                    b.industry_id IS NULL
+                    OR b.industry_id IN (
+                        SELECT id FROM industries
+                        WHERE name IN ('건축공사업', '토목공사업', '전문공사업')
+                    )
+                )
+                  AND b.title IS NOT NULL AND b.title != ''
+                LIMIT 50000
             """)).fetchall()
-            for bid_id, title in rows_title:
+            for bid_id, title, current_iid in rows_title:
                 iid = _infer_industry_from_title(db, title)
-                if iid:
+                if iid and iid != current_iid:
                     db.execute(
                         text("UPDATE bids SET industry_id = :iid WHERE id = :bid_id"),
                         {"iid": iid, "bid_id": bid_id},
