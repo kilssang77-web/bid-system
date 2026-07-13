@@ -1198,12 +1198,13 @@ def create_scheduler() -> BackgroundScheduler:
             replace_existing=True,
             max_instances=1,
         )
-    # 지역별 수집: 미수집 지역(전남·경남·충남·충북·전북·경기·서울) 순환 — 주 2회
+    # 지역별 수집: 미수집 지역(대전·전남·경남·충남·충북·경기·서울) 순환 — 주 2회
     # 수·토 22:00 KST, 지역 7개 × 건축 건 중심 전참여자 확보
     for i, (dow, hh, region) in enumerate((
         ("wed", 22, "경기"),   ("sat", 22, "서울"),
         ("wed", 23, "경남"),   ("sat", 23, "충남"),
         ("thu", 22, "전남"),   ("sun", 22, "충북"),
+        ("mon", 22, "대전"),
     )):
         scheduler.add_job(
             run_inpo21c_region_job,
