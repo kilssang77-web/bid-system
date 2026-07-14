@@ -1126,15 +1126,17 @@ def create_scheduler() -> BackgroundScheduler:
         replace_existing=True,
         max_instances=1,
     )
-    scheduler.add_job(
-        run_collection_job,
-        trigger=CronTrigger(hour=6, minute=30, timezone="Asia/Seoul"),
-        args=["notices"],
-        id="collect_notices_daily",
-        name="공고 수집 (매일 06:30 KST)",
-        replace_existing=True,
-        max_instances=1,
-    )
+    # G2B 공고 수집 — 1일 4회 (06:30 / 10:30 / 14:00 / 17:30)
+    for g2b_h, g2b_m in ((6, 30), (10, 30), (14, 0), (17, 30)):
+        scheduler.add_job(
+            run_collection_job,
+            trigger=CronTrigger(hour=g2b_h, minute=g2b_m, timezone="Asia/Seoul"),
+            args=["notices"],
+            id=f"collect_notices_{g2b_h:02d}{g2b_m:02d}",
+            name=f"G2B 공고 수집 ({g2b_h:02d}:{g2b_m:02d} KST)",
+            replace_existing=True,
+            max_instances=1,
+        )
     scheduler.add_job(
         run_results_and_sync,
         trigger=CronTrigger(hour=18, minute=30, timezone="Asia/Seoul"),
@@ -1151,14 +1153,16 @@ def create_scheduler() -> BackgroundScheduler:
         replace_existing=True,
         max_instances=1,
     )
-    scheduler.add_job(
-        run_bid_notices_inpo21c_job,
-        trigger=CronTrigger(hour=9, minute=30, timezone="Asia/Seoul"),
-        id="collect_bid_notices_inpo21c_daily",
-        name="inpo21c 입찰공고 사전정보 (매일 09:30 KST)",
-        replace_existing=True,
-        max_instances=1,
-    )
+    # inpo21c 입찰공고 사전정보 — 1일 2회 (09:30 / 14:30)
+    for ip_h, ip_m in ((9, 30), (14, 30)):
+        scheduler.add_job(
+            run_bid_notices_inpo21c_job,
+            trigger=CronTrigger(hour=ip_h, minute=ip_m, timezone="Asia/Seoul"),
+            id=f"collect_bid_notices_inpo21c_{ip_h:02d}{ip_m:02d}",
+            name=f"inpo21c 입찰공고 사전정보 ({ip_h:02d}:{ip_m:02d} KST)",
+            replace_existing=True,
+            max_instances=1,
+        )
     scheduler.add_job(
         run_inpo21c_job,
         trigger=CronTrigger(hour=20, minute=0, timezone="Asia/Seoul"),
@@ -1175,15 +1179,17 @@ def create_scheduler() -> BackgroundScheduler:
         replace_existing=True,
         max_instances=1,
     )
-    scheduler.add_job(
-        run_region_bid_notices_job,
-        trigger=CronTrigger(hour=7, minute=15, timezone="Asia/Seoul"),
-        args=["대전"],
-        id="collect_daejeon_notices_daily",
-        name="대전 지역 입찰공고 수집 — inpo21c /bid/con (매일 07:15 KST)",
-        replace_existing=True,
-        max_instances=1,
-    )
+    # 대전 지역 입찰공고 수집 — 1일 5회 (07:15 / 10:00 / 13:00 / 16:00 / 19:00)
+    for dj_h, dj_m in ((7, 15), (10, 0), (13, 0), (16, 0), (19, 0)):
+        scheduler.add_job(
+            run_region_bid_notices_job,
+            trigger=CronTrigger(hour=dj_h, minute=dj_m, timezone="Asia/Seoul"),
+            args=["대전"],
+            id=f"collect_daejeon_notices_{dj_h:02d}{dj_m:02d}",
+            name=f"대전 입찰공고 수집 ({dj_h:02d}:{dj_m:02d} KST)",
+            replace_existing=True,
+            max_instances=1,
+        )
     scheduler.add_job(
         run_srate_spike_check_job,
         trigger=CronTrigger(hour=7, minute=30, timezone="Asia/Seoul"),
