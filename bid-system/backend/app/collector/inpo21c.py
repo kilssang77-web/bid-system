@@ -387,7 +387,7 @@ def _parse_participants(html: str) -> list:
 
 def _parse_bid_header(html: str) -> dict | None:
     pairs: dict[str, str] = {}
-    for m in re.finditer(r"<th>([^<]+)</th>\s*<td[^>]*>(.*?)</td>", html, re.DOTALL):
+    for m in re.finditer(r"<th[^>]*>([^<]+)</th>\s*<td[^>]*>(.*?)</td>", html, re.DOTALL):
         key = m.group(1).strip()
         val = _txt(m.group(2)).strip()
         pairs[key] = val
@@ -455,7 +455,7 @@ def _parse_yega(html: str) -> list:
 
 def _parse_bid_notice(html: str) -> dict | None:
     pairs: dict[str, str] = {}
-    for m in re.finditer(r"<th>([^<]+)</th>\s*<td[^>]*>(.*?)</td>", html, re.DOTALL):
+    for m in re.finditer(r"<th[^>]*>([^<]+)</th>\s*<td[^>]*>(.*?)</td>", html, re.DOTALL):
         key = m.group(1).strip()
         val = _txt(m.group(2)).strip()
         pairs[key] = val
