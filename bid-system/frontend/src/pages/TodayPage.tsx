@@ -10,12 +10,13 @@ import {
   TrendingUp, TrendingDown, ChevronRight, CheckCircle2,
   Building2, Calendar, Zap, BarChart2, Search, ListChecks, Plus,
   BookOpen, ClipboardCheck, Crosshair, Bell, X, ChevronDown, ChevronUp,
-  ShieldCheck, ShieldAlert, Minus, Activity, History,
+  ShieldCheck, ShieldAlert, Minus, Activity, History, Tag, User, Users,
 } from 'lucide-react'
-import { bidsApi, statsApi, selectionApi, kpiApi, executionsApi, journalApi } from '@/api'
+import { bidsApi, statsApi, selectionApi, kpiApi, executionsApi, journalApi, keywordsApi } from '@/api'
+import { useAuthStore } from '@/store/auth'
 import type {
   BidRecommendItem, OverviewStatsWithChange, ExecutionSummary,
-  JournalStats, PendingResultItem, InlineDecision, RecommendationCompliance,
+  JournalStats, PendingResultItem, InlineDecision, RecommendationCompliance, WatchKeyword,
 } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -494,8 +495,11 @@ interface KPIData {
   alerts: string[]
 }
 
+interface KeywordMatch { keyword_id: number; user_id: number | null; match_count: number; new_7d: number }
+
 export default function TodayPage() {
   const navigate = useNavigate()
+  const currentUser = useAuthStore((s) => s.user)
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set())
   const [expandedBidId, setExpandedBidId] = useState<number | null>(null)
   const [inlineDataMap, setInlineDataMap] = useState<Record<number, InlineDecision>>({})
@@ -579,6 +583,23 @@ export default function TodayPage() {
     queryFn: () => statsApi.recommendationCompliance(90),
     staleTime: 300_000,
   })
+
+  // 키워드 모니터링
+  const { data: keywordMatches = [] } = useQuery<KeywordMatch[]>({
+    queryKey: ['keyword-matches'],
+    queryFn: bidsApi.keywordMatches,
+    staleTime: 120_000,
+  })
+  const { data: allKeywords = [] } = useQuery<WatchKeyword[]>({
+    queryKey: ['keywords'],
+    queryFn: keywordsApi.list,
+    staleTime: 120_000,
+  })
+  const myMatches  = keywordMatches.filter((m) => currentUser != null && m.user_id === currentUser.id)
+  const myNew7d    = myMatches.reduce((s, m) => s + m.new_7d, 0)
+  const allNew7d   = keywordMatches.reduce((s, m) => s + m.new_7d, 0)
+  const myKwCount  = allKeywords.filter((k) => currentUser != null && k.user_id === currentUser.id).length
+  const allKwCount = allKeywords.length
 
   // 투찰 실행 파이프라인
   const queryClient = useQueryClient()
@@ -977,6 +998,54 @@ export default function TodayPage() {
 
           {/* 우측 패널 */}
           <div className="space-y-4">
+            {/* 키워드 모니터링 */}
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Tag className="h-4 w-4 text-violet-500" />
+                  키워드 모니터링
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-2">
+                <button
+                  onClick={() => navigate('/keywords?tab=my')}
+                  className="w-full flex items-center justify-between bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg px-3 py-2 transition-colors group"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 text-blue-500" />
+                    <span className="text-xs font-semibold text-blue-700">내 키워드</span>
+                    <span className="text-xs font-bold text-blue-600">{myKwCount}개</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {myNew7d > 0 && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                        +{myNew7d} 신규
+                      </span>
+                    )}
+                    <ChevronRight className="h-3 w-3 text-blue-300 group-hover:text-blue-500" />
+                  </div>
+                </button>
+                <button
+                  onClick={() => navigate('/keywords?tab=all')}
+                  className="w-full flex items-center justify-between bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 transition-colors group"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-slate-500" />
+                    <span className="text-xs font-semibold text-slate-600">전체 키워드</span>
+                    <span className="text-xs font-bold text-slate-600">{allKwCount}개</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {allNew7d > 0 && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                        +{allNew7d} 신규
+                      </span>
+                    )}
+                    <ChevronRight className="h-3 w-3 text-slate-300 group-hover:text-slate-500" />
+                  </div>
+                </button>
+              </CardContent>
+            </Card>
+
             {/* 마감 임박 */}
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardHeader className="pb-2 pt-4 px-4">
