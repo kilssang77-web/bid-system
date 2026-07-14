@@ -795,6 +795,15 @@ def sync_inpo21c_notices_to_bids(db: Session) -> dict:
 
     # 0. inpo21c_bid_notices에만 있는 신규 공고 → bids INSERT (INSERT 실패해도 UPDATE는 계속)
     try:
+        # CockroachDB 시퀀스 desync 방지: agencies INSERT 전 시퀀스를 MAX(id)+1로 리셋
+        try:
+            db.execute(text(
+                "SELECT setval(pg_get_serial_sequence('agencies', 'id'), "
+                "COALESCE((SELECT MAX(id) FROM agencies), 0) + 1, false)"
+            ))
+        except Exception:
+            pass  # 시퀀스 리셋 실패 시 무시
+
         db.execute(text("""
             INSERT INTO agencies (name)
             SELECT DISTINCT n.agency_name
