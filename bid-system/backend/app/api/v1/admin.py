@@ -1438,3 +1438,38 @@ def rebuild_agency_budget_patterns_endpoint(
 
     background_tasks.add_task(_run)
     return {"message": "발주기관 예산 집행 패턴 재계산 시작됨"}
+
+
+@router.post("/inpo21c/cleanup-invalid-titles")
+def cleanup_invalid_titles(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role("admin")),
+):
+    """
+    inpo21c 파서가 경쟁사 서비스 페이지 제목을 잘못 수집한 무효 공고 정리.
+    - bids 테이블에서 무효 제목 공고 삭제
+    - inpo21c_bids / inpo21c_bid_notices 에서 무효 제목 NULL 처리
+    """
+    from sqlalchemy import text as _text
+    INVALID_PATTERNS = ["C 입찰정보", "최상의 정보를 최고의 고객에게"]
+
+    where_clause = " OR ".join(
+        f"title LIKE '%{p}%'" for p in INVALID_PATTERNS
+    )
+
+    # inpo21c_bids.title NULL 처리
+    r1 = db.execute(_text(f"UPDATE inpo21c_bids SET title = NULL WHERE {where_clause}"))
+    # inpo21c_bid_notices.title NULL 처리
+    r2 = db.execute(_text(f"UPDATE inpo21c_bid_notices SET title = NULL WHERE {where_clause}"))
+    # bids 삭제 — 연관 데이터(bid_results 등)도 cascade 정리
+    r3 = db.execute(_text(f"""
+        DELETE FROM bids
+        WHERE source = 'inpo21c' AND ({where_clause})
+    """))
+    db.commit()
+
+    return {
+        "inpo21c_bids_cleared": r1.rowcount,
+        "inpo21c_notices_cleared": r2.rowcount,
+        "bids_deleted": r3.rowcount,
+    }

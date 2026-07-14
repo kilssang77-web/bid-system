@@ -110,6 +110,15 @@ def _prog_done(error: str | None = None) -> None:
         if error:
             _prog["error"] = error
 
+# 수집 중 잘못 캡처되는 경쟁사/비정상 페이지 제목 패턴
+# (해당 패턴이 포함된 제목은 무효로 처리하여 저장하지 않음)
+_INVALID_TITLE_PATTERNS = [
+    "C 입찰정보",
+    "최상의 정보를 최고의 고객에게",
+    "입찰정보 서비스에 오신 것을",
+    "로그인 - 입찰정보",
+]
+
 _LOGIN_SIGNALS = ["login", "sign_in", "로그인", "세션이 만료", "인증이 필요"]
 
 _AUTH_BASE      = "https://infose.info21c.net"
@@ -307,6 +316,13 @@ def _txt(s: str) -> str:
     return re.sub(r"<[^>]+>", "", s).strip()
 
 
+def _is_valid_title(title: str | None) -> bool:
+    """경쟁사 페이지 타이틀 등 무효 제목이면 False 반환."""
+    if not title or len(title.strip()) < 5:
+        return False
+    return not any(pat in title for pat in _INVALID_TITLE_PATTERNS)
+
+
 def _parse_amount(s: str) -> int | None:
     if not s:
         return None
@@ -401,9 +417,10 @@ def _parse_bid_header(html: str) -> dict | None:
         if m2:
             yega_ratio = float(m2.group())
 
+    raw_title = (pairs.get("공고명", "") or pairs.get("입찰공고명", "") or pairs.get("공사명", "")).strip()
     return {
         "announcement_no":  re.sub(r"-\d+$", "", pairs.get("공고번호", "").strip()),
-        "title":            (pairs.get("공고명", "") or pairs.get("입찰공고명", "") or pairs.get("공사명", "")).strip(),
+        "title":            raw_title if _is_valid_title(raw_title) else "",
         "industry":         pairs.get("공고업종", "").strip(),
         "region":           pairs.get("지역", "").strip(),
         "agency_name":      pairs.get("발주기관", "").strip(),
@@ -481,11 +498,15 @@ def _parse_bid_notice(html: str) -> dict | None:
         pairs.get("공사명", "") or pairs.get("용역명", "") or
         pairs.get("물품명", "")
     ).strip()
-    # fallback: <title> 태그에서 추출
+    if not _is_valid_title(title):
+        title = ""
+    # fallback: <title> 태그에서 추출 (무효 패턴이면 사용하지 않음)
     if not title:
         m_title = re.search(r"<title>([^<]+)</title>", html, re.IGNORECASE)
         if m_title:
-            title = m_title.group(1).strip().replace(" - 입찰공고", "").replace("인포21", "").strip()
+            candidate = m_title.group(1).strip().replace(" - 입찰공고", "").replace("인포21", "").strip()
+            if _is_valid_title(candidate):
+                title = candidate
 
     return {
         "announcement_no":  re.sub(r"-\d+$", "", pairs.get("공고번호", "").strip()),
@@ -723,7 +744,7 @@ def collect_inpo21c(db: Session, max_pages: int = 100) -> dict:
                     if needs_header:
                         header = _parse_bid_header(detail_html)
                         if header:
-                            if not header.get("title") and list_title:
+                            if not header.get("title") and _is_valid_title(list_title):
                                 header["title"] = list_title
                             _upsert_bid_header(db, bid_id, header)
                             existing_bids.add(bid_id)
@@ -861,8 +882,8 @@ def collect_inpo21c_national(db: Session, max_pages: int = 50) -> dict:
                 if needs_header:
                     header = _parse_bid_header(detail_html)
                     if header:
-                        # 상세 페이지에 공고명 없으면 목록 페이지 타이틀 사용
-                        if not header.get("title") and list_title:
+                        # 상세 페이지에 공고명 없으면 목록 페이지 타이틀 사용 (무효 패턴 제외)
+                        if not header.get("title") and _is_valid_title(list_title):
                             header["title"] = list_title
                         _upsert_bid_header(db, bid_id, header)
                         existing_bids.add(bid_id)
@@ -1009,7 +1030,7 @@ def collect_inpo21c_by_region(
             if needs_header:
                 header = _parse_bid_header(detail_html)
                 if header:
-                    if not header.get("title") and list_title:
+                    if not header.get("title") and _is_valid_title(list_title):
                         header["title"] = list_title
                     _upsert_bid_header(db, bid_id, header)
                 existing_bids.add(bid_id)
@@ -1170,9 +1191,10 @@ def collect_bid_notices_inpo21c(
                                  referer=f"{BASE}/bid/con?{referer_qs}")
             notice_data = _parse_bid_notice(detail_html)
             if notice_data:
-                # detail 파싱 title이 없으면 목록에서 가져온 title 사용
+                # detail 파싱 title이 없으면 목록에서 가져온 title 사용 (무효 패턴 제외)
                 if not notice_data.get("title"):
-                    notice_data["title"] = list_title_map.get(bid_id, "")
+                    candidate = list_title_map.get(bid_id, "")
+                    notice_data["title"] = candidate if _is_valid_title(candidate) else ""
                 is_rescrape = db.execute(
                     text("SELECT 1 FROM inpo21c_bid_notices WHERE inpo21c_bid_id=:id"),
                     {"id": bid_id},
