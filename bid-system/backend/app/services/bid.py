@@ -46,15 +46,13 @@ class BidService:
         if base_amount_min is not None: q = q.filter(Bid.base_amount >= base_amount_min)
         if base_amount_max is not None: q = q.filter(Bid.base_amount <= base_amount_max)
 
-        # 활성 공종 필터 — industry_id=NULL 공고는 업종 미분류이므로 항상 포함
+        # 활성 공종 필터 — 관리자가 설정한 업종만 표시
         if not industry_id:
             active_ids = get_active_industry_ids(db)
             if active_ids is not None:
                 if not active_ids:
                     return {"items": [], "total": 0, "page": page, "size": size}
-                q = q.filter(
-                    (Bid.industry_id.in_(active_ids)) | (Bid.industry_id.is_(None))
-                )
+                q = q.filter(Bid.industry_id.in_(active_ids))
 
         total = q.count()
 
@@ -278,7 +276,7 @@ class BidService:
         ind_filter = ""
         if active_ids:
             ids_str = ",".join(str(i) for i in active_ids)
-            ind_filter = f"AND (b.industry_id IN ({ids_str}) OR b.industry_id IS NULL)"
+            ind_filter = f"AND b.industry_id IN ({ids_str})"
 
         for kw in keywords:
             kw_safe = kw.keyword.replace("'", "''")
