@@ -639,6 +639,8 @@ def sync_inpo21c_to_bids(db: Session) -> dict:
             WHERE ib.announcement_no IS NOT NULL
               AND ib.agency_name IS NOT NULL AND ib.agency_name != ''
               AND ib.title IS NOT NULL AND ib.title != ''
+              AND ib.title NOT LIKE '%C 입찰정보%'
+              AND ib.title NOT LIKE '%최상의 정보를 최고의 고객에게%'
               AND NOT EXISTS (SELECT 1 FROM bids b WHERE b.announcement_no = ib.announcement_no)
               AND NOT EXISTS (SELECT 1 FROM agencies a WHERE a.name = ib.agency_name)
         """))
@@ -662,6 +664,8 @@ def sync_inpo21c_to_bids(db: Session) -> dict:
             JOIN agencies a ON a.name = ib.agency_name
             WHERE ib.announcement_no IS NOT NULL
               AND ib.title IS NOT NULL AND ib.title != ''
+              AND ib.title NOT LIKE '%C 입찰정보%'
+              AND ib.title NOT LIKE '%최상의 정보를 최고의 고객에게%'
               AND NOT EXISTS (SELECT 1 FROM bids b WHERE b.announcement_no = ib.announcement_no)
             ON CONFLICT (announcement_no) DO NOTHING
         """))
@@ -811,6 +815,8 @@ def sync_inpo21c_notices_to_bids(db: Session) -> dict:
             FROM inpo21c_bid_notices n
             WHERE n.agency_name IS NOT NULL AND n.agency_name != ''
               AND n.title IS NOT NULL AND n.title != ''
+              AND n.title NOT LIKE '%C 입찰정보%'
+              AND n.title NOT LIKE '%최상의 정보를 최고의 고객에게%'
               AND NOT EXISTS (
                 SELECT 1 FROM agencies a WHERE a.name = n.agency_name
               )
@@ -838,6 +844,8 @@ def sync_inpo21c_notices_to_bids(db: Session) -> dict:
             JOIN agencies a ON a.name = n.agency_name
             WHERE n.announcement_no IS NOT NULL
               AND n.title IS NOT NULL AND n.title != ''
+              AND n.title NOT LIKE '%C 입찰정보%'
+              AND n.title NOT LIKE '%최상의 정보를 최고의 고객에게%'
               AND NOT EXISTS (
                 SELECT 1 FROM bids b
                 WHERE b.announcement_no = SPLIT_PART(n.announcement_no, '-', 1)
