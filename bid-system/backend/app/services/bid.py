@@ -5,7 +5,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import text, desc
+from sqlalchemy import text, desc, func, cast
+from sqlalchemy.types import Date
 
 from ..models import (
     Bid, BidResult, Competitor, Agency, Industry, Region, IndustryFilter,
@@ -60,7 +61,9 @@ class BidService:
         if sort_by == 'bid_open_date':
             q = q.order_by(desc(Bid.bid_open_date).nullslast(), desc(Bid.created_at))
         else:
-            q = q.order_by(desc(Bid.notice_date).nullslast(), desc(Bid.created_at))
+            # COALESCE(notice_date, bid_close_date::date) — G2B와 inpo21c 공고를 날짜 기준으로 자연스럽게 혼합
+            sort_date = func.coalesce(Bid.notice_date, cast(Bid.bid_close_date, Date))
+            q = q.order_by(desc(sort_date).nullslast(), desc(Bid.created_at))
 
         bids = q.offset((page-1)*size).limit(size).all()
 
