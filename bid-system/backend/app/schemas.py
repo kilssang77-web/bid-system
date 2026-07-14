@@ -291,6 +291,7 @@ class WatchKeywordUpdate(BaseModel):
 
 class WatchKeywordOut(BaseModel):
     id: int
+    user_id: Optional[int] = None
     keyword: str
     kw_type: str
     is_active: bool

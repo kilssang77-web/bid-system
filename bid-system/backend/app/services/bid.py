@@ -314,6 +314,7 @@ class BidService:
 
             result.append({
                 "keyword_id":  kw.id,
+                "user_id":     kw.user_id,
                 "keyword":     kw.keyword,
                 "kw_type":     kw.kw_type,
                 "note":        kw.note,

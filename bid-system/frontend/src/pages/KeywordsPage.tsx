@@ -1,15 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
-import { Plus, Pencil, Trash2, Search, Tag, ToggleLeft, ToggleRight, BookMarked, ExternalLink, AlertCircle, Loader2 } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Plus, Pencil, Trash2, Search, Tag, ToggleLeft, ToggleRight, BookMarked, ExternalLink, AlertCircle, Loader2, User, Users } from 'lucide-react'
 import { keywordsApi, bidsApi } from '@/api'
 import type { WatchKeyword } from '@/types'
+import { useAuthStore } from '@/store/auth'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select'
@@ -40,7 +41,7 @@ const KW_TYPE_CONFIG: Record<string, { label: string; chipCls: string; desc: str
 }
 
 interface KeywordMatch {
-  keyword_id: number; keyword: string; kw_type: string; note: string | null
+  keyword_id: number; user_id: number | null; keyword: string; kw_type: string; note: string | null
   match_count: number; new_7d: number
   recent_bids: { id: number; title: string; agency_name: string; base_amount: number; notice_date: string | null; status: string }[]
 }
@@ -48,15 +49,27 @@ interface KeywordMatch {
 interface FormState { keyword: string; kw_type: string; note: string }
 const EMPTY_FORM: FormState = { keyword: '', kw_type: 'general', note: '' }
 
+type TabType = 'my' | 'all'
+
 export default function KeywordsPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const currentUser = useAuthStore((s) => s.user)
+
+  const [activeTab, setActiveTab] = useState<TabType>((searchParams.get('tab') as TabType) ?? 'my')
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
   const [expandedId, setExpandedId] = useState<number | null>(null)
+
+  useEffect(() => {
+    setSearchParams((prev) => { prev.set('tab', activeTab); return prev }, { replace: true })
+    setSearch('')
+    setExpandedId(null)
+  }, [activeTab])
 
   const { data: keywords = [], isLoading } = useQuery<WatchKeyword[]>({
     queryKey: ['keywords'], queryFn: keywordsApi.list,
@@ -93,13 +106,20 @@ export default function KeywordsPage() {
     else createMutation.mutate(body)
   }
   function goToBids(keyword: string) { navigate(`/bids?keyword=${encodeURIComponent(keyword)}`) }
+  function isOwner(kw: WatchKeyword) { return currentUser != null && kw.user_id === currentUser.id }
 
-  const filtered = keywords.filter(
+  const myKeywords  = keywords.filter((kw) => currentUser != null && kw.user_id === currentUser.id)
+  const allKeywords = keywords
+
+  const displayKeywords = (activeTab === 'my' ? myKeywords : allKeywords).filter(
     (kw) => kw.keyword.toLowerCase().includes(search.toLowerCase()) || (kw.note ?? '').toLowerCase().includes(search.toLowerCase())
   )
-  const activeCount = keywords.filter((k) => k.is_active).length
+
   const matchMap = Object.fromEntries(matches.map((m) => [m.keyword_id, m]))
-  const totalNew7d = matches.reduce((s, m) => s + m.new_7d, 0)
+  const myMatches  = matches.filter((m) => currentUser != null && m.user_id === currentUser.id)
+  const totalNew7d = (activeTab === 'my' ? myMatches : matches).reduce((s, m) => s + m.new_7d, 0)
+
+  const isMyTab = activeTab === 'my'
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -108,42 +128,99 @@ export default function KeywordsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-slate-900 flex items-center gap-2">
-              <BookMarked className="h-5 w-5 text-blue-600" />키워드 관리
+              <BookMarked className="h-5 w-5 text-blue-600" />키워드 모니터링
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">
-              전체 <span className="font-semibold text-slate-700">{keywords.length}</span>개 / 활성 <span className="font-semibold text-blue-600">{activeCount}</span>개
+              {isMyTab
+                ? <>내 키워드 <span className="font-semibold text-slate-700">{myKeywords.length}</span>개 / 활성 <span className="font-semibold text-blue-600">{myKeywords.filter(k => k.is_active).length}</span>개</>
+                : <>전체 키워드 <span className="font-semibold text-slate-700">{allKeywords.length}</span>개 / 활성 <span className="font-semibold text-blue-600">{allKeywords.filter(k => k.is_active).length}</span>개</>
+              }
             </p>
           </div>
-          <Button onClick={() => { resetForm(); setShowForm(true) }} className="gap-2 bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4" />키워드 추가
-          </Button>
+          {isMyTab && (
+            <Button onClick={() => { resetForm(); setShowForm(true) }} className="gap-2 bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4" />키워드 추가
+            </Button>
+          )}
         </div>
       </div>
 
       <div className="p-6 space-y-5">
+        {/* 탭 */}
+        <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
+          <button
+            onClick={() => setActiveTab('my')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
+              isMyTab
+                ? 'bg-white text-blue-700 shadow-sm border border-slate-200'
+                : 'text-slate-500 hover:text-slate-700'
+            )}
+          >
+            <User className="h-3.5 w-3.5" />
+            내 키워드
+            <span className={cn(
+              'text-xs font-bold px-1.5 py-0.5 rounded-full',
+              isMyTab ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-500'
+            )}>
+              {myKeywords.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('all')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
+              !isMyTab
+                ? 'bg-white text-slate-700 shadow-sm border border-slate-200'
+                : 'text-slate-500 hover:text-slate-700'
+            )}
+          >
+            <Users className="h-3.5 w-3.5" />
+            전체 키워드
+            <span className={cn(
+              'text-xs font-bold px-1.5 py-0.5 rounded-full',
+              !isMyTab ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-500'
+            )}>
+              {allKeywords.length}
+            </span>
+          </button>
+        </div>
+
         {/* 안내 카드 */}
-        <Card className="bg-blue-50 border-blue-100 shadow-none">
-          <CardContent className="py-3.5 px-4">
-            <p className="text-sm font-semibold text-blue-700 flex items-center gap-1.5 mb-2">
-              <Tag className="h-3.5 w-3.5" />키워드 활용 방법
-            </p>
-            <ul className="text-xs space-y-1 text-blue-700/80 list-disc list-inside">
-              <li><strong>공고명 키워드</strong> — 입찰 제목에 해당 단어가 포함된 공고를 즉시 검색</li>
-              <li><strong>발주기관 키워드</strong> — 특정 기관에서 발주한 공고를 모니터링</li>
-              <li>각 키워드별 매칭 공고 수와 최근 7일 신규 건수를 확인하고 빠르게 이동할 수 있습니다.</li>
-            </ul>
-          </CardContent>
-        </Card>
+        {isMyTab ? (
+          <Card className="bg-blue-50 border-blue-100 shadow-none">
+            <CardContent className="py-3.5 px-4">
+              <p className="text-sm font-semibold text-blue-700 flex items-center gap-1.5 mb-2">
+                <Tag className="h-3.5 w-3.5" />키워드 활용 방법
+              </p>
+              <ul className="text-xs space-y-1 text-blue-700/80 list-disc list-inside">
+                <li><strong>공고명 키워드</strong> — 입찰 제목에 해당 단어가 포함된 공고를 즉시 검색</li>
+                <li><strong>발주기관 키워드</strong> — 특정 기관에서 발주한 공고를 모니터링</li>
+                <li>각 키워드별 매칭 공고 수와 최근 7일 신규 건수를 확인하고 빠르게 이동할 수 있습니다.</li>
+              </ul>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="bg-slate-50 border-slate-200 shadow-none">
+            <CardContent className="py-3 px-4">
+              <p className="text-xs text-slate-500 flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 shrink-0" />
+                전체 사용자가 등록한 키워드를 <strong>조회 전용</strong>으로 볼 수 있습니다. 본인 키워드만 추가·수정·삭제 가능합니다.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {totalNew7d > 0 && (
           <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
             <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
-            최근 7일 내 키워드 매칭 신규 공고 <strong className="text-amber-800">{totalNew7d}건</strong>이 있습니다.
+            {isMyTab ? '내 키워드' : '전체 키워드'} 최근 7일 신규 매칭 공고
+            <strong className="text-amber-800">{totalNew7d}건</strong>이 있습니다.
           </div>
         )}
 
-        {/* 키워드 추가/수정 폼 */}
-        {showForm && (
+        {/* 키워드 추가/수정 폼 — 내 키워드 탭에서만 */}
+        {isMyTab && showForm && (
           <Card className="bg-white border-slate-200 shadow-sm">
             <CardHeader className="border-b border-slate-100 pb-4">
               <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
@@ -215,13 +292,13 @@ export default function KeywordsPage() {
             <div className="p-6 space-y-3">
               {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
-          ) : filtered.length === 0 ? (
+          ) : displayKeywords.length === 0 ? (
             <div className="py-20 text-center">
               <Tag className="h-10 w-10 text-slate-200 mx-auto mb-3" />
               <p className="text-slate-500 text-sm">
-                {search ? '검색 결과가 없습니다.' : '등록된 키워드가 없습니다.'}
+                {search ? '검색 결과가 없습니다.' : isMyTab ? '등록된 키워드가 없습니다.' : '키워드가 없습니다.'}
               </p>
-              {!search && (
+              {!search && isMyTab && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -242,23 +319,31 @@ export default function KeywordsPage() {
                   <TableHead className="text-slate-600 font-semibold">메모</TableHead>
                   <TableHead className="text-slate-600 font-semibold">활성</TableHead>
                   <TableHead className="text-slate-600 font-semibold">등록일</TableHead>
-                  <TableHead className="text-slate-600 font-semibold">관리</TableHead>
+                  {isMyTab && <TableHead className="text-slate-600 font-semibold">관리</TableHead>}
+                  {!isMyTab && <TableHead className="text-slate-600 font-semibold">등록자</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((kw) => {
+                {displayKeywords.map((kw) => {
                   const m = matchMap[kw.id]
                   const isExpanded = expandedId === kw.id
                   const kwConf = KW_TYPE_CONFIG[kw.kw_type] ?? KW_TYPE_CONFIG.general
+                  const mine = isOwner(kw)
                   return (
                     <>
                       <TableRow key={kw.id} className={cn('hover:bg-slate-50/50 border-b border-slate-100 transition-colors', !kw.is_active && 'opacity-50')}>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <div className="h-7 w-7 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                              <Tag className="h-3.5 w-3.5 text-blue-600" />
+                            <div className={cn(
+                              'h-7 w-7 rounded-lg flex items-center justify-center shrink-0',
+                              mine ? 'bg-blue-50' : 'bg-slate-100'
+                            )}>
+                              <Tag className={cn('h-3.5 w-3.5', mine ? 'text-blue-600' : 'text-slate-400')} />
                             </div>
                             <span className="font-semibold text-slate-800">{kw.keyword}</span>
+                            {mine && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200">내 키워드</span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -295,41 +380,58 @@ export default function KeywordsPage() {
                         </TableCell>
                         <TableCell className="text-slate-500 text-xs">{kw.note ?? '-'}</TableCell>
                         <TableCell>
-                          <button
-                            onClick={() => toggleMutation.mutate({ id: kw.id, is_active: !kw.is_active })}
-                            title={kw.is_active ? '비활성화' : '활성화'}
-                            className="transition-opacity hover:opacity-70"
-                          >
-                            {kw.is_active
-                              ? <ToggleRight className="h-6 w-6 text-blue-600" />
-                              : <ToggleLeft className="h-6 w-6 text-slate-500" />}
-                          </button>
+                          {mine ? (
+                            <button
+                              onClick={() => toggleMutation.mutate({ id: kw.id, is_active: !kw.is_active })}
+                              title={kw.is_active ? '비활성화' : '활성화'}
+                              className="transition-opacity hover:opacity-70"
+                            >
+                              {kw.is_active
+                                ? <ToggleRight className="h-6 w-6 text-blue-600" />
+                                : <ToggleLeft className="h-6 w-6 text-slate-500" />}
+                            </button>
+                          ) : (
+                            kw.is_active
+                              ? <ToggleRight className="h-6 w-6 text-slate-300 cursor-not-allowed" />
+                              : <ToggleLeft className="h-6 w-6 text-slate-200 cursor-not-allowed" />
+                          )}
                         </TableCell>
                         <TableCell className="text-slate-500 text-xs">{new Date(kw.created_at).toLocaleDateString('ko-KR')}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost" size="icon"
-                              className="h-7 w-7 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
-                              onClick={() => handleEdit(kw)}
-                              title="수정"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost" size="icon"
-                              className="h-7 w-7 text-slate-500 hover:text-red-600 hover:bg-red-50"
-                              onClick={() => setDeleteConfirm(kw.id)}
-                              title="삭제"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                        {isMyTab && (
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost" size="icon"
+                                className="h-7 w-7 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
+                                onClick={() => handleEdit(kw)}
+                                title="수정"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost" size="icon"
+                                className="h-7 w-7 text-slate-500 hover:text-red-600 hover:bg-red-50"
+                                onClick={() => setDeleteConfirm(kw.id)}
+                                title="삭제"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
+                        {!isMyTab && (
+                          <TableCell>
+                            {mine ? (
+                              <span className="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">나</span>
+                            ) : (
+                              <span className="text-xs text-slate-400">다른 사용자</span>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                       {isExpanded && m && m.recent_bids.length > 0 && (
                         <TableRow key={`${kw.id}-expand`}>
-                          <TableCell colSpan={7} className="bg-slate-50 px-6 py-4">
+                          <TableCell colSpan={isMyTab ? 7 : 7} className="bg-slate-50 px-6 py-4">
                             <div className="text-xs font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
                               <Tag className="h-3 w-3" />최근 매칭 공고
                             </div>

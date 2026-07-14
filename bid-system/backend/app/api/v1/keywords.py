@@ -29,6 +29,8 @@ def update_keyword(kw_id: int, body: WatchKeywordUpdate, db: Session = Depends(g
     kw = db.query(WatchKeyword).filter(WatchKeyword.id == kw_id).first()
     if not kw:
         raise HTTPException(status_code=404, detail="키워드를 찾을 수 없습니다.")
+    if kw.user_id != user.id:
+        raise HTTPException(status_code=403, detail="본인이 등록한 키워드만 수정할 수 있습니다.")
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(kw, k, v)
     db.commit()
@@ -41,6 +43,8 @@ def delete_keyword(kw_id: int, db: Session = Depends(get_db), user: User = Depen
     kw = db.query(WatchKeyword).filter(WatchKeyword.id == kw_id).first()
     if not kw:
         raise HTTPException(status_code=404, detail="키워드를 찾을 수 없습니다.")
+    if kw.user_id != user.id:
+        raise HTTPException(status_code=403, detail="본인이 등록한 키워드만 삭제할 수 있습니다.")
     db.delete(kw)
     db.commit()
     return {"success": True}

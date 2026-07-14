@@ -9,10 +9,11 @@ import {
 import {
   FileText, Users, TrendingUp, TrendingDown, Activity, ArrowUp, ArrowDown,
   Trophy, Building2, Zap, Star, Info, LayoutDashboard, Target, Bell, ChevronRight,
-  Clock, AlertTriangle, CheckCircle2, FileSearch,
+  Clock, AlertTriangle, CheckCircle2, FileSearch, Tag, User,
 } from 'lucide-react'
-import { statsApi, bidsApi, journalApi, preSpecApi } from '@/api'
-import type { OverviewStatsWithChange, Bid, TopSrateTrend, BidRecommendItem, UpcomingOpening, JournalStats } from '@/types'
+import { statsApi, bidsApi, journalApi, preSpecApi, keywordsApi } from '@/api'
+import type { OverviewStatsWithChange, Bid, TopSrateTrend, BidRecommendItem, UpcomingOpening, JournalStats, WatchKeyword } from '@/types'
+import { useAuthStore } from '@/store/auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
@@ -120,8 +121,14 @@ function fmtAmt(n: number) {
   return n.toLocaleString()
 }
 
+interface KeywordMatch {
+  keyword_id: number; user_id: number | null
+  match_count: number; new_7d: number
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate()
+  const currentUser = useAuthStore((s) => s.user)
 
   const { data: overview, isLoading } = useQuery<OverviewStatsWithChange>({
     queryKey: ['overview', 24],
@@ -181,6 +188,22 @@ export default function DashboardPage() {
     staleTime: 300_000,
   })
 
+  const { data: keywordMatches = [] } = useQuery<KeywordMatch[]>({
+    queryKey: ['keyword-matches'],
+    queryFn: bidsApi.keywordMatches,
+    staleTime: 120_000,
+  })
+  const { data: allKeywords = [] } = useQuery<WatchKeyword[]>({
+    queryKey: ['keywords'],
+    queryFn: keywordsApi.list,
+    staleTime: 120_000,
+  })
+  const myMatches    = keywordMatches.filter((m) => currentUser != null && m.user_id === currentUser.id)
+  const myNew7d      = myMatches.reduce((s, m) => s + m.new_7d, 0)
+  const allNew7d     = keywordMatches.reduce((s, m) => s + m.new_7d, 0)
+  const myKwCount    = allKeywords.filter((k) => currentUser != null && k.user_id === currentUser.id).length
+  const allKwCount   = allKeywords.length
+
   const trend = (overview?.monthly_trend ?? []).map((d) => ({
     label:  `${d.year}-${String(d.month).padStart(2, '0')}`,
     건수:   d.bid_count,
@@ -231,7 +254,7 @@ export default function DashboardPage() {
       <div className="flex-1 p-6 space-y-5 max-w-[1440px] mx-auto w-full">
 
         {/* 지금 할 일 — 액션 바 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
           {/* AI 투찰 결정 */}
           <button
             onClick={() => navigate('/decision')}
@@ -292,6 +315,52 @@ export default function DashboardPage() {
             </div>
             <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
           </button>
+
+          {/* 키워드 모니터링 */}
+          <div className="flex flex-col gap-1.5 bg-white border border-gray-200 rounded-xl px-5 py-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-0.5">
+              <Tag className="w-4 h-4 text-violet-500" />
+              <span className="font-semibold text-sm text-gray-700">키워드 모니터링</span>
+            </div>
+            {/* 내 키워드 */}
+            <button
+              onClick={() => navigate('/keywords?tab=my')}
+              className="flex items-center justify-between bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg px-3 py-1.5 transition-colors group"
+            >
+              <div className="flex items-center gap-1.5">
+                <User className="w-3 h-3 text-blue-500" />
+                <span className="text-xs font-semibold text-blue-700">내 키워드</span>
+                <span className="text-xs text-blue-600 font-bold">{myKwCount}개</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {myNew7d > 0 && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                    +{myNew7d} 신규
+                  </span>
+                )}
+                <ChevronRight className="w-3 h-3 text-blue-300 group-hover:text-blue-500" />
+              </div>
+            </button>
+            {/* 전체 키워드 */}
+            <button
+              onClick={() => navigate('/keywords?tab=all')}
+              className="flex items-center justify-between bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 transition-colors group"
+            >
+              <div className="flex items-center gap-1.5">
+                <Users className="w-3 h-3 text-slate-500" />
+                <span className="text-xs font-semibold text-slate-600">전체 키워드</span>
+                <span className="text-xs text-slate-600 font-bold">{allKwCount}개</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {allNew7d > 0 && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                    +{allNew7d} 신규
+                  </span>
+                )}
+                <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-slate-500" />
+              </div>
+            </button>
+          </div>
         </div>
 
         {/* ── 개찰 임박 공고 + 최근 투찰 성과 ── */}

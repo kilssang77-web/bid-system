@@ -191,6 +191,7 @@ export interface OverviewStats {
 
 export interface WatchKeyword {
   id: number
+  user_id: number | null
   keyword: string
   kw_type: string
   is_active: boolean
