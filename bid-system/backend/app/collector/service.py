@@ -930,13 +930,13 @@ def sync_inpo21c_notices_to_bids(db: Session) -> dict:
 
         # industry_id / region_id 보완 — inpo21c_bid_notices.industry / .region
         # (commit 후 별도 처리: 실패해도 위 동기화 결과는 보존)
+        # NULL뿐 아니라 G2B가 잘못 배정한 지역/업종도 inpo21c 기준으로 덮어씀
         rows_ir = db.execute(text("""
-            SELECT b.id, n.industry, n.region
+            SELECT b.id, n.industry, n.region, b.region_id, b.industry_id
             FROM bids b
             JOIN inpo21c_bid_notices n
               ON SPLIT_PART(n.announcement_no, '-', 1) = b.announcement_no
-            WHERE (b.industry_id IS NULL OR b.region_id IS NULL)
-              AND (
+            WHERE (
                 (n.industry IS NOT NULL AND n.industry != '')
                 OR (n.region IS NOT NULL AND n.region != '')
               )
@@ -948,20 +948,22 @@ def sync_inpo21c_notices_to_bids(db: Session) -> dict:
         ] or None
 
         ind_updated = reg_updated = 0
-        for bid_id, ind_str, reg_str in rows_ir:
+        for bid_id, ind_str, reg_str, cur_region_id, cur_industry_id in rows_ir:
             if ind_str:
                 iid = _resolve_industry_from_inpo21c(db, ind_str, active_ids)
-                if iid:
+                if iid and iid != cur_industry_id:
+                    # inpo21c [대] 업종이 있으면 항상 덮어씀 (G2B 일반업종보다 정확)
                     db.execute(
-                        text("UPDATE bids SET industry_id = :iid WHERE id = :bid_id AND industry_id IS NULL"),
+                        text("UPDATE bids SET industry_id = :iid WHERE id = :bid_id"),
                         {"iid": iid, "bid_id": bid_id},
                     )
                     ind_updated += 1
             if reg_str:
                 rid = _resolve_region_from_inpo21c(db, reg_str)
-                if rid:
+                if rid and rid != cur_region_id:
+                    # inpo21c 지역 검색 결과는 실제 공고 소재지 기준 → G2B 오배정 덮어씀
                     db.execute(
-                        text("UPDATE bids SET region_id = :rid WHERE id = :bid_id AND region_id IS NULL"),
+                        text("UPDATE bids SET region_id = :rid WHERE id = :bid_id"),
                         {"rid": rid, "bid_id": bid_id},
                     )
                     reg_updated += 1
