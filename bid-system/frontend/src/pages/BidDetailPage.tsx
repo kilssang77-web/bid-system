@@ -34,7 +34,7 @@ import HotZonePanel from '@/components/HotZonePanel'
 const fmt = (n: number) => new Intl.NumberFormat('ko-KR').format(Math.round(n))
 const fmtPct = (n: number) => `${(n * 100).toFixed(1)}%`
 const fmtRate = (n: number) => `${(n * 100).toFixed(4)}%`
-const fmtDate = (s: string | null) => (s ? s.slice(0, 10) : '-')
+const fmtDate = (s: string | null | undefined) => (s ? s.slice(0, 10) : '-')
 
 // ── TabInfo ──────────────────────────────────────────────────────────────
 
