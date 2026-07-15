@@ -72,131 +72,184 @@ function TabInfo({ bid, score, active }: { bid: BidDetail; score: OpportunitySco
     grade === 'B' ? 'bg-blue-500' :
     grade === 'C' ? 'bg-amber-500' : 'bg-red-500'
 
+  const scheduleItems: { label: string; value: string | null | undefined; highlight?: boolean }[] = [
+    { label: '공고일',       value: bid.notice_date },
+    { label: '참가등록마감', value: bid.registration_deadline },
+    { label: '투찰마감',     value: bid.bid_close_date, highlight: true },
+    { label: '개찰일',       value: bid.bid_open_date },
+  ]
+
   return (
     <div className="space-y-4">
-      <Card className="bg-white border-slate-200 shadow-sm">
-        <CardHeader className="border-b border-slate-100 pb-3">
-          <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-            <FileText className="h-4 w-4 text-blue-600" />공고 기본정보
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
-            <div>
-              <dt className="text-xs text-slate-500 mb-0.5">공고번호</dt>
-              <dd className="font-mono text-xs text-slate-700 bg-slate-50 rounded px-2 py-1 inline-block">{bid.announcement_no}</dd>
+      <Card className="bg-white border-slate-200 shadow-sm overflow-hidden">
+        {/* ── 헤더: 기관명 + 공고번호 + 분류 태그 ── */}
+        <div className="bg-gradient-to-br from-slate-800 to-slate-700 px-5 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1.5 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono text-[11px] text-slate-300 bg-white/10 rounded px-2 py-0.5 tracking-wider select-all">
+                  {bid.announcement_no}
+                </span>
+                {bid.region_name && (
+                  <span className="text-[11px] text-slate-400">{bid.region_name}</span>
+                )}
+              </div>
+              <p className="text-white font-bold text-lg leading-snug truncate">{bid.agency_name}</p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {bid.industry_name && (
+                  <span className="text-[11px] bg-blue-500/25 text-blue-200 border border-blue-400/30 rounded-full px-2.5 py-0.5">
+                    {bid.industry_name}
+                  </span>
+                )}
+                {bid.bid_method && (
+                  <span className="text-[11px] bg-white/10 text-slate-300 border border-white/15 rounded-full px-2.5 py-0.5">
+                    {bid.bid_method}
+                  </span>
+                )}
+                {bid.source === 'inpo21c' && (
+                  <span className="text-[11px] bg-purple-500/25 text-purple-200 border border-purple-400/30 rounded-full px-2.5 py-0.5">
+                    인포21
+                  </span>
+                )}
+              </div>
             </div>
-            <div>
-              <dt className="text-xs text-slate-500 mb-0.5">발주기관</dt>
-              <dd className="font-medium text-slate-800">{bid.agency_name}</dd>
+            {bid.ntce_url && (
+              <a href={bid.ntce_url} target="_blank" rel="noopener noreferrer"
+                className="shrink-0 flex items-center gap-1 text-[11px] text-blue-300 hover:text-white border border-blue-400/30 rounded-lg px-2.5 py-1.5 hover:bg-white/10 transition-colors">
+                <ExternalLink className="h-3 w-3" />나라장터
+              </a>
+            )}
+          </div>
+        </div>
+
+        <CardContent className="p-5 space-y-4">
+          {/* ── 금액 카드 ── */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+              <p className="text-xs text-slate-500 mb-1">기초금액</p>
+              <p className="text-xl font-bold text-slate-900 tabular-nums leading-tight">
+                {fmt(bid.base_amount)}
+                <span className="text-sm font-normal text-slate-500 ml-1">원</span>
+              </p>
             </div>
-            <div>
-              <dt className="text-xs text-slate-500 mb-0.5">업종</dt>
-              <dd className="text-slate-700">{bid.industry_name ?? '-'}</dd>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+              <p className="text-xs text-slate-500 mb-1">추정가격</p>
+              <p className="text-xl font-bold text-slate-900 tabular-nums leading-tight">
+                {bid.estimated_price ? (
+                  <>{fmt(bid.estimated_price)}<span className="text-sm font-normal text-slate-500 ml-1">원</span></>
+                ) : <span className="text-slate-400 text-base">-</span>}
+              </p>
             </div>
-            <div>
-              <dt className="text-xs text-slate-500 mb-0.5">지역</dt>
-              <dd className="text-slate-700">{bid.region_name ?? '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-slate-500 mb-0.5">기초금액</dt>
-              <dd className="font-semibold text-slate-900">₩{fmt(bid.base_amount)}원</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-slate-500 mb-0.5">추정가격</dt>
-              <dd className="font-medium text-slate-800">
-                {bid.estimated_price ? `₩${fmt(bid.estimated_price)}원` : '-'}
-              </dd>
-            </div>
-            {bid.a_value && (
-              <div>
-                <dt className="text-xs text-slate-500 mb-0.5">A값</dt>
-                <dd className="font-medium text-emerald-700">₩{fmt(bid.a_value)}원</dd>
+            {bid.preset_amount != null && (
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-xs text-emerald-600 mb-1">낙찰예정가격</p>
+                <p className="text-xl font-bold text-emerald-700 tabular-nums leading-tight">
+                  {fmt(bid.preset_amount)}<span className="text-sm font-normal text-emerald-500 ml-1">원</span>
+                </p>
               </div>
             )}
+            {bid.a_value && (
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-xs text-emerald-600 mb-1">A값</p>
+                <p className="text-xl font-bold text-emerald-700 tabular-nums leading-tight">
+                  {fmt(bid.a_value)}<span className="text-sm font-normal text-emerald-500 ml-1">원</span>
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* ── 조건 배지 ── */}
+          <div className="flex flex-wrap gap-2">
             {bid.min_bid_rate && (
-              <div>
-                <dt className="text-xs text-slate-500 mb-0.5">낙찰하한율</dt>
-                <dd className="font-medium text-slate-800">{(bid.min_bid_rate * 100).toFixed(4)}%</dd>
+              <div className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5">
+                <span className="text-[11px] text-amber-600 font-medium">낙찰하한율</span>
+                <span className="text-sm font-bold text-amber-800 tabular-nums">{(bid.min_bid_rate * 100).toFixed(4)}%</span>
               </div>
             )}
             {bid.yega_method && (
-              <div>
-                <dt className="text-xs text-slate-500 mb-0.5">예가방법</dt>
-                <dd className="text-slate-700 text-xs">{bid.yega_method}</dd>
-              </div>
-            )}
-            <div>
-              <dt className="text-xs text-slate-500 mb-0.5">공고일</dt>
-              <dd className="text-slate-700">{fmtDate(bid.notice_date)}</dd>
-            </div>
-            {bid.registration_deadline && (
-              <div>
-                <dt className="text-xs text-slate-500 mb-0.5">참가등록마감</dt>
-                <dd className="text-slate-700">{fmtDate(bid.registration_deadline)}</dd>
-              </div>
-            )}
-            <div>
-              <dt className="text-xs text-slate-500 mb-0.5">투찰마감</dt>
-              <dd className="font-medium text-amber-700">{fmtDate(bid.bid_close_date)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-slate-500 mb-0.5">개찰일</dt>
-              <dd className="font-medium text-slate-800">{fmtDate(bid.bid_open_date)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-slate-500 mb-0.5">입찰방법</dt>
-              <dd className="text-slate-700">{bid.bid_method ?? '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-slate-500 mb-0.5">계약방법</dt>
-              <dd className="text-slate-700">{bid.contract_method ?? '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-slate-500 mb-0.5">공사위치</dt>
-              <dd className="text-slate-700">{bid.construction_site ?? '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-slate-500 mb-0.5">지역제한</dt>
-              <dd className="text-slate-700">{bid.region_restriction ? (bid.eligible_regions ?? '있음') : '없음'}</dd>
-            </div>
-            {bid.contact_name && (
-              <div>
-                <dt className="text-xs text-slate-500 mb-0.5">담당자</dt>
-                <dd className="text-slate-700">{bid.contact_name}{bid.contact_tel ? ` (${bid.contact_tel})` : ''}</dd>
-              </div>
-            )}
-            {bid.preset_amount != null && (
-              <div>
-                <dt className="text-xs text-slate-500 mb-0.5">낙찰예정가격</dt>
-                <dd className="font-semibold text-emerald-700">₩{fmt(bid.preset_amount)}원</dd>
+              <div className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5">
+                <span className="text-[11px] text-blue-600 font-medium">예가방법</span>
+                <span className="text-[11px] font-bold text-blue-800">{bid.yega_method}</span>
               </div>
             )}
             {bid.yega_ratio != null && (
-              <div>
-                <dt className="text-xs text-slate-500 mb-0.5">예가/기초비율</dt>
-                <dd className="font-medium text-slate-800">{bid.yega_ratio.toFixed(4)}%</dd>
+              <div className="flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5">
+                <span className="text-[11px] text-purple-600 font-medium">예가/기초비율</span>
+                <span className="text-sm font-bold text-purple-800 tabular-nums">{bid.yega_ratio.toFixed(4)}%</span>
+              </div>
+            )}
+            <div className={cn(
+              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5",
+              bid.region_restriction ? "border-red-200 bg-red-50" : "border-slate-200 bg-slate-50"
+            )}>
+              <span className="text-[11px] text-slate-500 font-medium">지역제한</span>
+              <span className={cn("text-xs font-bold", bid.region_restriction ? "text-red-700" : "text-slate-600")}>
+                {bid.region_restriction ? (bid.eligible_regions ?? '있음') : '없음'}
+              </span>
+            </div>
+            {bid.contract_method && bid.contract_method !== '-' && (
+              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
+                <span className="text-[11px] text-slate-500 font-medium">계약방법</span>
+                <span className="text-xs font-bold text-slate-700">{bid.contract_method}</span>
               </div>
             )}
             {bid.net_cost != null && (
-              <div>
-                <dt className="text-xs text-slate-500 mb-0.5">순공사원가</dt>
-                <dd className="font-medium text-slate-800">₩{fmt(bid.net_cost)}원</dd>
+              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
+                <span className="text-[11px] text-slate-500 font-medium">순공사원가</span>
+                <span className="text-xs font-bold text-slate-700">₩{fmt(bid.net_cost)}원</span>
               </div>
             )}
-          </dl>
-          {bid.ntce_url && (
-            <div className="mt-4 pt-3 border-t border-slate-100">
-              <a
-                href={bid.ntce_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 hover:underline font-medium"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                나라장터 공고 바로가기
-              </a>
+          </div>
+
+          {/* ── 입찰 일정 타임라인 ── */}
+          <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3.5">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">입찰 일정</p>
+            <div className="flex items-start">
+              {scheduleItems.map((item, i) => (
+                <div key={item.label} className="flex items-start flex-1 min-w-0">
+                  <div className="flex flex-col items-center flex-1 min-w-0">
+                    <div className={cn(
+                      "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0",
+                      item.highlight
+                        ? "border-amber-500 bg-amber-500"
+                        : "border-slate-300 bg-white"
+                    )}>
+                      {item.highlight && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1.5 text-center leading-tight px-1">{item.label}</p>
+                    <p className={cn(
+                      "text-[11px] font-bold mt-0.5 text-center tabular-nums",
+                      item.highlight ? "text-amber-700" : "text-slate-700"
+                    )}>
+                      {fmtDate(item.value)}
+                    </p>
+                  </div>
+                  {i < scheduleItems.length - 1 && (
+                    <div className="h-px bg-slate-300 flex-none w-4 mt-2 shrink-0" />
+                  )}
+                </div>
+              ))}
             </div>
+          </div>
+
+          {/* ── 부가 정보 ── */}
+          {(bid.construction_site || bid.contact_name) && (
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 border-t border-slate-100 pt-3">
+              {bid.construction_site && (
+                <div>
+                  <dt className="text-[11px] text-slate-400 mb-0.5">공사위치</dt>
+                  <dd className="text-xs font-medium text-slate-700">{bid.construction_site}</dd>
+                </div>
+              )}
+              {bid.contact_name && (
+                <div>
+                  <dt className="text-[11px] text-slate-400 mb-0.5">담당자</dt>
+                  <dd className="text-xs font-medium text-slate-700">
+                    {bid.contact_name}{bid.contact_tel ? ` (${bid.contact_tel})` : ''}
+                  </dd>
+                </div>
+              )}
+            </dl>
           )}
         </CardContent>
       </Card>
