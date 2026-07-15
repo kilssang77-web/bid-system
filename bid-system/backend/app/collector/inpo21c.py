@@ -293,6 +293,7 @@ def _ensure_tables(db: Session) -> None:
     """))
     db.execute(text("ALTER TABLE inpo21c_bid_notices ADD COLUMN IF NOT EXISTS a_value BIGINT"))
     db.execute(text("ALTER TABLE inpo21c_bid_notices ADD COLUMN IF NOT EXISTS title VARCHAR(500)"))
+    db.execute(text("ALTER TABLE inpo21c_bid_notices ADD COLUMN IF NOT EXISTS notice_date DATE"))
     db.execute(text("ALTER TABLE inpo21c_bids ADD COLUMN IF NOT EXISTS a_value BIGINT"))
     db.execute(text("CREATE INDEX IF NOT EXISTS idx_inpo21c_notices_announcement ON inpo21c_bid_notices(announcement_no)"))
     db.commit()
@@ -333,6 +334,27 @@ def _parse_amount(s: str) -> int | None:
 def _parse_rate(s: str) -> float | None:
     m = re.match(r"[\d.]+", s.strip()) if s else None
     return float(m.group()) if m else None
+
+
+def _parse_date(s: str):
+    """날짜만 파싱 (date 객체 반환). '2026년 07월 14일' 또는 '2026-07-14' 형식 지원."""
+    if not s:
+        return None
+    m = re.search(r"(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일", s)
+    if m:
+        try:
+            from datetime import date
+            return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except ValueError:
+            pass
+    m2 = re.match(r"(\d{4})-(\d{2})-(\d{2})", s.strip())
+    if m2:
+        try:
+            from datetime import date
+            return date(int(m2.group(1)), int(m2.group(2)), int(m2.group(3)))
+        except ValueError:
+            pass
+    return None
 
 
 def _parse_dt(s: str) -> datetime | None:
@@ -520,13 +542,14 @@ def _parse_bid_notice(html: str) -> dict | None:
         "yega_range_min":   yega_rmin,
         "yega_range_max":   yega_rmax,
         "min_bid_rate":     _parse_rate(pairs.get("낙찰하한율", "")),
-        "contract_method":  pairs.get("계약방법", "").strip(),
+        "contract_method":  pairs.get("계약방법", "").strip() or None,
         "reg_deadline":     _parse_dt(pairs.get("참가등록마감", "")),
         "bid_deadline":     _parse_dt(pairs.get("투찰마감일시", "")),
         "open_datetime":    _parse_dt(pairs.get("개찰일시", "")),
         "base_amount":      _parse_amount(pairs.get("기초금액", "")),
         "estimated_amount": _parse_amount(pairs.get("추정가격", "")),
         "a_value":          _parse_amount(pairs.get("A값", "")),
+        "notice_date":      _parse_date(pairs.get("공고게시일", "") or pairs.get("입력일", "")),
     }
 
 
@@ -617,13 +640,13 @@ def _upsert_bid_notice(db: Session, bid_id: str, data: dict) -> None:
                  yega_method, yega_draw_count, yega_total_count,
                  yega_range_min, yega_range_max, min_bid_rate, contract_method,
                  reg_deadline, bid_deadline, open_datetime, base_amount, estimated_amount,
-                 a_value, updated_at)
+                 a_value, notice_date, updated_at)
             VALUES
                 (:bid_id, :announcement_no, :title, :industry, :region, :agency_name,
                  :yega_method, :yega_draw_count, :yega_total_count,
                  :yega_range_min, :yega_range_max, :min_bid_rate, :contract_method,
                  :reg_deadline, :bid_deadline, :open_datetime, :base_amount, :estimated_amount,
-                 :a_value, now())
+                 :a_value, :notice_date, now())
             ON CONFLICT (inpo21c_bid_id) DO UPDATE SET
                 announcement_no  = EXCLUDED.announcement_no,
                 title            = COALESCE(EXCLUDED.title, inpo21c_bid_notices.title),
@@ -633,10 +656,14 @@ def _upsert_bid_notice(db: Session, bid_id: str, data: dict) -> None:
                 yega_range_min   = EXCLUDED.yega_range_min,
                 yega_range_max   = EXCLUDED.yega_range_max,
                 min_bid_rate     = EXCLUDED.min_bid_rate,
+                contract_method  = COALESCE(EXCLUDED.contract_method, inpo21c_bid_notices.contract_method),
+                reg_deadline     = COALESCE(EXCLUDED.reg_deadline, inpo21c_bid_notices.reg_deadline),
+                bid_deadline     = COALESCE(EXCLUDED.bid_deadline, inpo21c_bid_notices.bid_deadline),
                 open_datetime    = EXCLUDED.open_datetime,
                 base_amount      = COALESCE(EXCLUDED.base_amount, inpo21c_bid_notices.base_amount),
                 estimated_amount = COALESCE(EXCLUDED.estimated_amount, inpo21c_bid_notices.estimated_amount),
                 a_value          = COALESCE(EXCLUDED.a_value, inpo21c_bid_notices.a_value),
+                notice_date      = COALESCE(EXCLUDED.notice_date, inpo21c_bid_notices.notice_date),
                 updated_at       = now()
         """), {"bid_id": bid_id, **data})
         db.commit()

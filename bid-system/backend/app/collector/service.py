@@ -874,14 +874,18 @@ def sync_inpo21c_notices_to_bids(db: Session) -> dict:
         logger.warning("notices→bids INSERT 실패 (무시, UPDATE는 계속): %s", _ins_exc)
 
     try:
-        # base_amount 보완 (0인 경우)
+        # base_amount 보완: 0이거나 G2B가 추정가격을 기초금액으로 잘못 쓴 경우(base=estimated) 덮어씀
         r = db.execute(text("""
             UPDATE bids b
             SET base_amount = n.base_amount
             FROM inpo21c_bid_notices n
             WHERE SPLIT_PART(n.announcement_no, '-', 1) = b.announcement_no
               AND n.base_amount IS NOT NULL AND n.base_amount > 0
-              AND (b.base_amount IS NULL OR b.base_amount = 0)
+              AND (
+                b.base_amount IS NULL
+                OR b.base_amount = 0
+                OR b.base_amount = b.estimated_price
+              )
         """))
         stats["base_amount"] = r.rowcount
 
@@ -956,6 +960,28 @@ def sync_inpo21c_notices_to_bids(db: Session) -> dict:
               AND b.a_value IS NULL
         """))
         stats["a_value_from_notices"] = r.rowcount
+
+        # contract_method 동기화 (inpo21c_bid_notices에서)
+        r = db.execute(text("""
+            UPDATE bids b
+            SET contract_method = n.contract_method
+            FROM inpo21c_bid_notices n
+            WHERE SPLIT_PART(n.announcement_no, '-', 1) = b.announcement_no
+              AND n.contract_method IS NOT NULL AND n.contract_method != ''
+              AND (b.contract_method IS NULL OR b.contract_method = '-' OR b.contract_method = '')
+        """))
+        stats["contract_method"] = r.rowcount
+
+        # notice_date 동기화 (공고게시일 — inpo21c_bid_notices에서)
+        r = db.execute(text("""
+            UPDATE bids b
+            SET notice_date = n.notice_date
+            FROM inpo21c_bid_notices n
+            WHERE SPLIT_PART(n.announcement_no, '-', 1) = b.announcement_no
+              AND n.notice_date IS NOT NULL
+              AND b.notice_date IS NULL
+        """))
+        stats["notice_date"] = r.rowcount
 
         db.commit()
 
