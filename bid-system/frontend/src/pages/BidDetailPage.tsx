@@ -187,18 +187,6 @@ function TabInfo({ bid, score, active }: { bid: BidDetail; score: OpportunitySco
                 {bid.region_restriction ? (bid.eligible_regions ?? '있음') : '없음'}
               </span>
             </div>
-            {bid.contract_method && bid.contract_method !== '-' && (
-              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
-                <span className="text-[11px] text-slate-500 font-medium">계약방법</span>
-                <span className="text-xs font-bold text-slate-700">{bid.contract_method}</span>
-              </div>
-            )}
-            {bid.net_cost != null && (
-              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
-                <span className="text-[11px] text-slate-500 font-medium">순공사원가</span>
-                <span className="text-xs font-bold text-slate-700">₩{fmt(bid.net_cost)}원</span>
-              </div>
-            )}
           </div>
 
           {/* ── 입찰 일정 타임라인 ── */}
@@ -232,25 +220,35 @@ function TabInfo({ bid, score, active }: { bid: BidDetail; score: OpportunitySco
             </div>
           </div>
 
-          {/* ── 부가 정보 ── */}
-          {(bid.construction_site || bid.contact_name) && (
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 border-t border-slate-100 pt-3">
-              {bid.construction_site && (
-                <div>
-                  <dt className="text-[11px] text-slate-400 mb-0.5">공사위치</dt>
-                  <dd className="text-xs font-medium text-slate-700">{bid.construction_site}</dd>
-                </div>
-              )}
-              {bid.contact_name && (
-                <div>
-                  <dt className="text-[11px] text-slate-400 mb-0.5">담당자</dt>
-                  <dd className="text-xs font-medium text-slate-700">
-                    {bid.contact_name}{bid.contact_tel ? ` (${bid.contact_tel})` : ''}
-                  </dd>
-                </div>
-              )}
-            </dl>
-          )}
+          {/* ── 부가 정보 (항상 표시) ── */}
+          <dl className="grid grid-cols-3 gap-x-4 gap-y-3 border-t border-slate-100 pt-3">
+            <div>
+              <dt className="text-[11px] text-slate-400 mb-0.5">계약방법</dt>
+              <dd className="text-xs font-medium text-slate-700">{bid.contract_method || '-'}</dd>
+            </div>
+            <div>
+              <dt className="text-[11px] text-slate-400 mb-0.5">공사기간</dt>
+              <dd className="text-xs font-medium text-slate-700">{bid.construction_period ? `${bid.construction_period}일` : '-'}</dd>
+            </div>
+            <div>
+              <dt className="text-[11px] text-slate-400 mb-0.5">공사위치</dt>
+              <dd className="text-xs font-medium text-slate-700">{bid.construction_site || '-'}</dd>
+            </div>
+            {bid.net_cost != null && (
+              <div>
+                <dt className="text-[11px] text-slate-400 mb-0.5">순공사원가</dt>
+                <dd className="text-xs font-medium text-slate-700">₩{fmt(bid.net_cost)}원</dd>
+              </div>
+            )}
+            {bid.contact_name && (
+              <div className="col-span-2">
+                <dt className="text-[11px] text-slate-400 mb-0.5">담당자</dt>
+                <dd className="text-xs font-medium text-slate-700">
+                  {bid.contact_name}{bid.contact_tel ? ` (${bid.contact_tel})` : ''}
+                </dd>
+              </div>
+            )}
+          </dl>
         </CardContent>
       </Card>
 
