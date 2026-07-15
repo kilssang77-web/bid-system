@@ -27,18 +27,28 @@ jobs:
           echo "Render 서버 웜업 중..."
           for i in 1 2 3; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
-              "${{ secrets.BACKEND_URL }}/api/v1/bids?size=1" \
-              -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" || echo "000")
+              "${{ secrets.BACKEND_URL }}/api/health" || echo "000")
             echo "  시도 $i: HTTP $STATUS"
             [ "$STATUS" = "200" ] && break
             sleep 20
           done
 
+      - name: 관리자 로그인 (토큰 발급)
+        id: auth
+        run: |
+          RESP=$(curl -sf -X POST "${{ secrets.BACKEND_URL }}/api/v1/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\":\"${{ secrets.ADMIN_USERNAME }}\",\"password\":\"${{ secrets.ADMIN_PASSWORD }}\"}" \
+            --max-time 15)
+          TOKEN=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+          echo "로그인 성공"
+
       - name: 수집 전 대전 공고 수 기록
         id: before
         run: |
           TOTAL=$(curl -sf "${{ secrets.BACKEND_URL }}/api/v1/bids?region_id=6&size=1" \
-            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+            -H "Authorization: Bearer ${{ steps.auth.outputs.token }}" \
             --max-time 15 | python3 -c "import sys,json; print(json.load(sys.stdin).get('total',0))" 2>/dev/null || echo "0")
           echo "total=$TOTAL" >> $GITHUB_OUTPUT
           echo "수집 전 대전 공고: $TOTAL 건"
@@ -51,7 +61,7 @@ jobs:
           echo "수집 시작: 지역=$REGION, 페이지=$PAGES"
           RESP=$(curl -sf -X POST \
             "${{ secrets.BACKEND_URL }}/api/v1/admin/inpo21c/collect-notices?region=${REGION_ENC}&max_pages=${PAGES}" \
-            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+            -H "Authorization: Bearer ${{ steps.auth.outputs.token }}" \
             --max-time 600)
           echo "수집 완료:"
           echo "$RESP" | python3 -c "
@@ -68,7 +78,7 @@ if sync.get(\"insert_error\"):
 
       - name: 수집 결과 확인
         run: |
-          TOKEN="${{ secrets.ADMIN_TOKEN }}"
+          TOKEN="${{ steps.auth.outputs.token }}"
           BEFORE="${{ steps.before.outputs.total }}"
 
           AFTER=$(curl -sf "${{ secrets.BACKEND_URL }}/api/v1/bids?region_id=6&size=1" \
