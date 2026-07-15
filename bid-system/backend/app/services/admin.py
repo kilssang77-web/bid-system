@@ -753,7 +753,7 @@ class AdminService:
         users = db.query(User).order_by(User.id).all()
         return [
             {
-                "id": u.id, "email": u.email, "name": u.name,
+                "id": u.id, "username": u.username, "name": u.name,
                 "role": u.role, "department": u.department,
                 "is_active": u.is_active,
                 "last_login": u.last_login,
@@ -762,16 +762,16 @@ class AdminService:
             for u in users
         ]
 
-    def create_user(self, db: Session, email: str, password: str, name: str,
+    def create_user(self, db: Session, username: str, password: str, name: str,
                     role: str = "viewer", department: str = None) -> dict:
         from ..common.security import hash_password
         from fastapi import HTTPException
-        if db.query(User).filter(User.email == email).first():
-            raise HTTPException(400, "이미 사용 중인 이메일입니다.")
+        if db.query(User).filter(User.username == username).first():
+            raise HTTPException(400, "이미 사용 중인 아이디입니다.")
         if role not in ("admin", "analyst", "viewer"):
             raise HTTPException(400, "유효하지 않은 역할입니다.")
         user = User(
-            email=email,
+            username=username,
             hashed_password=hash_password(password),
             name=name, role=role,
             department=department,
@@ -780,7 +780,7 @@ class AdminService:
         db.add(user)
         db.commit()
         db.refresh(user)
-        return {"id": user.id, "email": user.email, "name": user.name, "role": user.role}
+        return {"id": user.id, "username": user.username, "name": user.name, "role": user.role}
 
     def update_user(self, db: Session, uid: int, admin_id: int, **fields) -> dict:
         from fastapi import HTTPException
@@ -796,7 +796,7 @@ class AdminService:
         if fields.get("is_active") is not None:  user.is_active = fields["is_active"]
         if fields.get("password"):               user.hashed_password = hash_password(fields["password"])
         db.commit()
-        return {"id": user.id, "email": user.email, "name": user.name,
+        return {"id": user.id, "username": user.username, "name": user.name,
                 "role": user.role, "is_active": user.is_active}
 
     def delete_user(self, db: Session, uid: int, admin_id: int) -> None:

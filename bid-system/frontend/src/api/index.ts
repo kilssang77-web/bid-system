@@ -6,8 +6,8 @@ type KeywordUpdateBody = Partial<Pick<WatchKeyword, 'keyword' | 'kw_type' | 'is_
 // -- 인증 --------------------------------------------------
 
 export const authApi = {
-  login: (email: string, password: string) =>
-    api.post('/auth/login', { email, password }).then((r) => r.data),
+  login: (username: string, password: string) =>
+    api.post('/auth/login', { username, password }).then((r) => r.data),
   me: () => api.get('/auth/me').then((r) => r.data),
 }
 
@@ -191,7 +191,7 @@ export const keywordsApi = {
 export const adminApi = {
   users: (): Promise<AdminUser[]> =>
     api.get('/admin/users').then((r) => r.data),
-  createUser: (body: { email: string; password: string; name: string; role: string; department?: string }) =>
+  createUser: (body: { username: string; password: string; name: string; role: string; department?: string }) =>
     api.post('/admin/users', body).then((r) => r.data),
   updateUser: (id: number, body: Partial<{ name: string; role: string; department: string; is_active: boolean; password: string }>) =>
     api.put(`/admin/users/${id}`, body).then((r) => r.data),

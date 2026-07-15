@@ -163,17 +163,17 @@ def _comp_bias(comp_id: int) -> float:
 def _seed_admin(db: Session):
     from .config import get_settings
     s = get_settings()
-    existing = db.query(User).filter(User.email == s.first_admin_email).first()
+    existing = db.query(User).filter(User.username == s.first_admin_username).first()
     if not existing:
         db.add(User(
-            email=s.first_admin_email,
+            username=s.first_admin_username,
             hashed_password=hash_password(s.first_admin_password),
             name="관리자",
             role="admin",
             department="IT",
         ))
         db.commit()
-        logger.info(f"관리자 계정 생성: {s.first_admin_email}")
+        logger.info(f"관리자 계정 생성: username={s.first_admin_username}")
 
 
 def ensure_admin_password(db: Session):
@@ -185,10 +185,10 @@ def ensure_admin_password(db: Session):
     from .config import get_settings
     s = get_settings()
     new_hash = hash_password(s.first_admin_password)
-    user = db.query(User).filter(User.email == s.first_admin_email).first()
+    user = db.query(User).filter(User.username == s.first_admin_username).first()
     if not user:
         db.add(User(
-            email=s.first_admin_email,
+            username=s.first_admin_username,
             hashed_password=new_hash,
             name="관리자",
             role="admin",
@@ -196,13 +196,13 @@ def ensure_admin_password(db: Session):
             is_active=True,
         ))
         db.commit()
-        logger.info(f"관리자 계정 생성: {s.first_admin_email}")
+        logger.info(f"관리자 계정 생성: username={s.first_admin_username}")
     else:
         user.hashed_password = new_hash
         user.is_active = True
         user.role = "admin"
         db.commit()
-        logger.info(f"관리자 비밀번호·권한 동기화 완료: {s.first_admin_email}")
+        logger.info(f"관리자 비밀번호·권한 동기화 완료: {s.first_admin_username}")
 
 
 def _train_initial_model(db: Session):

@@ -1,4 +1,4 @@
-﻿from pydantic import BaseModel, ConfigDict, EmailStr, Field
+﻿from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Dict
 from datetime import datetime, date
 
@@ -14,7 +14,7 @@ class ApiResponse(BaseModel):
 # -- ?? --------------------------------------------------
 
 class LoginRequest(BaseModel):
-    email: str
+    username: str
     password: str
 
 
@@ -26,7 +26,7 @@ class TokenResponse(BaseModel):
 
 
 class UserCreate(BaseModel):
-    email: str
+    username: str
     password: str
     name: str
     role: str = "viewer"
@@ -35,7 +35,7 @@ class UserCreate(BaseModel):
 
 class UserOut(BaseModel):
     id: int
-    email: str
+    username: str
     name: Optional[str]
     role: str
     department: Optional[str]

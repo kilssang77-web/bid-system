@@ -197,7 +197,7 @@ class PredictionLog(Base):
 class User(Base):
     __tablename__ = "users"
     id              = Column(Integer, primary_key=True)
-    email           = Column(String(200), unique=True, nullable=False)
+    username        = Column("email", String(200), unique=True, nullable=False)
     hashed_password = Column(String(200), nullable=False)
     name            = Column(String(100))
     role            = Column(String(20), default="viewer")

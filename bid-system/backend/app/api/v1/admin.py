@@ -35,7 +35,7 @@ def list_users(db: Session = Depends(get_db), _: User = Depends(require_role("ad
 
 
 class UserCreateBody(BaseModel):
-    email: str
+    username: str
     password: str
     name: str
     role: str = "viewer"
@@ -49,7 +49,7 @@ def create_user(
     _: User = Depends(require_role("admin")),
 ):
     return _admin_svc.create_user(
-        db, email=body.email, password=body.password,
+        db, username=body.username, password=body.password,
         name=body.name, role=body.role, department=body.department,
     )
 

@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 10080  # 7일 — 업무 중 자동 로그아웃 방지
 
-    first_admin_email: str = "admin@bid.local"
+    first_admin_username: str = "admin"
     first_admin_password: str = "admin1234"
     force_reset_admin_password: bool = False  # true 시 재시작 때 DB 비밀번호를 .env 값으로 강제 동기화
     seed_demo_data: bool = True

@@ -1,6 +1,6 @@
 ﻿export interface User {
   id: number
-  email: string
+  username: string
   name: string | null
   role: 'admin' | 'analyst' | 'viewer'
   department: string | null
@@ -201,7 +201,7 @@ export interface WatchKeyword {
 
 export interface AdminUser {
   id: number
-  email: string
+  username: string
   name: string | null
   role: string
   department: string | null

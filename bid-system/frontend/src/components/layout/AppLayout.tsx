@@ -198,7 +198,7 @@ export default function AppLayout() {
     return () => { if (id) window.clearTimeout(id) }
   }, [])
 
-  const initials = (user?.name || user?.email || 'U').slice(0, 2).toUpperCase()
+  const initials = (user?.name || user?.username || 'U').slice(0, 2).toUpperCase()
   const roleLabel = user?.role === 'admin' ? '관리자' : user?.role === 'analyst' ? '분석가' : '뷰어'
 
   const toggleGroup = (key: string) =>
@@ -409,7 +409,7 @@ export default function AppLayout() {
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] font-medium text-slate-200 truncate leading-none">
-                    {user?.name || user?.email}
+                    {user?.name || user?.username}
                   </p>
                   <p className="text-xs text-slate-500 mt-[3px] leading-none">{roleLabel}</p>
                 </div>

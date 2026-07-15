@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, BarChart2, Shield, Zap, CheckCircle2, Lock, Mail } from 'lucide-react'
+import { TrendingUp, BarChart2, Shield, Zap, CheckCircle2, Lock, User } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { authApi } from '@/api'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export default function LoginPage() {
-  const [email, setEmail]       = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
@@ -20,7 +20,7 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const res = await authApi.login(email, password)
+      const res = await authApi.login(username, password)
       setToken(res.access_token)
       const me = await authApi.me()
       setUser(me)
@@ -28,7 +28,7 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status
       if (status === 401) {
-        setError('이메일 또는 비밀번호가 올바르지 않습니다.')
+        setError('아이디 또는 비밀번호가 올바르지 않습니다.')
       } else if (!status) {
         setError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.')
       } else {
@@ -127,16 +127,16 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-sm font-medium text-slate-300">
-                이메일
+              <Label htmlFor="username" className="text-sm font-medium text-slate-300">
+                아이디
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
                   className="pl-10 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500/20"
                 />

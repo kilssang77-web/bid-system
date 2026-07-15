@@ -203,8 +203,8 @@ function WinProbTrainCard() {
   )
 }
 
-interface UserFormState { email: string; password: string; name: string; role: string; department: string }
-const EMPTY_FORM: UserFormState = { email: '', password: '', name: '', role: 'viewer', department: '' }
+interface UserFormState { username: string; password: string; name: string; role: string; department: string }
+const EMPTY_FORM: UserFormState = { username: '', password: '', name: '', role: 'viewer', department: '' }
 
 export default function AdminPage() {
   const qc = useQueryClient()
@@ -358,7 +358,7 @@ export default function AdminPage() {
   function resetForm() { setShowForm(false); setEditId(null); setForm(EMPTY_FORM) }
   function handleEdit(u: AdminUser) {
     setEditId(u.id)
-    setForm({ email: u.email, password: '', name: u.name ?? '', role: u.role, department: u.department ?? '' })
+    setForm({ username: u.username, password: '', name: u.name ?? '', role: u.role, department: u.department ?? '' })
     setShowForm(true)
   }
   function handleSubmit(e: React.FormEvent) {
@@ -368,7 +368,7 @@ export default function AdminPage() {
       if (form.password) body.password = form.password
       updateMutation.mutate({ id: editId, body })
     } else {
-      createMutation.mutate({ email: form.email, password: form.password, name: form.name, role: form.role, department: form.department || undefined })
+      createMutation.mutate({ username: form.username, password: form.password, name: form.name, role: form.role, department: form.department || undefined })
     }
   }
 
@@ -1551,8 +1551,8 @@ export default function AdminPage() {
                   <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {editId === null && (
                       <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-slate-600">이메일 *</Label>
-                        <Input type="email" value={form.email} required onChange={(e) => setForm({ ...form, email: e.target.value })} className="border-slate-200" />
+                        <Label className="text-sm font-medium text-slate-600">아이디 *</Label>
+                        <Input type="text" value={form.username} required onChange={(e) => setForm({ ...form, username: e.target.value })} className="border-slate-200" />
                       </div>
                     )}
                     <div className="space-y-1.5">
@@ -1600,7 +1600,7 @@ export default function AdminPage() {
                   <TableHeader>
                     <TableRow className="bg-slate-50 border-b border-slate-200">
                       <TableHead className="text-slate-600 font-semibold">이름</TableHead>
-                      <TableHead className="text-slate-600 font-semibold">이메일</TableHead>
+                      <TableHead className="text-slate-600 font-semibold">아이디</TableHead>
                       <TableHead className="text-slate-600 font-semibold">역할</TableHead>
                       <TableHead className="text-slate-600 font-semibold">부서</TableHead>
                       <TableHead className="text-slate-600 font-semibold">마지막 로그인</TableHead>
@@ -1614,7 +1614,7 @@ export default function AdminPage() {
                       return (
                         <TableRow key={u.id} className={cn('hover:bg-slate-50/50 border-b border-slate-100 transition-colors', !u.is_active && 'opacity-50')}>
                           <TableCell className="font-semibold text-slate-800">{u.name || '-'}</TableCell>
-                          <TableCell className="text-slate-500 text-sm">{u.email}</TableCell>
+                          <TableCell className="text-slate-500 text-sm">{u.username}</TableCell>
                           <TableCell>
                             <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full', roleConf.cls)}>
                               {roleConf.label}
