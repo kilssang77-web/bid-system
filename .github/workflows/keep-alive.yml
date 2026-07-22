@@ -17,8 +17,8 @@ jobs:
       - name: Ping backend health
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 30 \
-            "${{ secrets.BACKEND_URL }}/api/health")
+            --max-time 60 \
+            "${{ secrets.BACKEND_URL }}/api/health" || echo "000")
           echo "HTTP Status: $STATUS"
           if [ "$STATUS" != "200" ]; then
             echo "::warning::Backend returned $STATUS (may be cold-starting)"
