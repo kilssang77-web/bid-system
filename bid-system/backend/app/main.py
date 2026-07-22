@@ -214,6 +214,6 @@ app.add_middleware(
 app.include_router(api_router)
 
 
-@app.get("/api/health")
+@app.api_route("/api/health", methods=["GET", "HEAD"])
 def health():
     return {"status": "ok", "version": "1.0.0", "ai_mode": "local-ml"}
