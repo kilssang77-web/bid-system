@@ -22,32 +22,46 @@ jobs:
     name: inpo21c 지역 공고 수집
 
     steps:
-      - name: Render 웜업 (슬립 해제)
+      - name: Render 웜업 (슬립 해제 + 재배포 대기)
         run: |
-          echo "Render 서버 웜업 중..."
-          for i in 1 2 3; do
+          echo "Render 서버 웜업 중 (최대 3분)..."
+          for i in $(seq 1 9); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
               "${{ secrets.BACKEND_URL }}/api/health" || echo "000")
             echo "  시도 $i: HTTP $STATUS"
-            [ "$STATUS" = "200" ] && break
+            [ "$STATUS" = "200" ] && echo "서버 준비 완료" && exit 0
             sleep 20
           done
+          echo "서버가 응답하지 않습니다 — 계속 진행합니다 (로그인 단계에서 재시도)"
 
-      - name: 관리자 로그인 (토큰 발급)
+      - name: 관리자 로그인 (토큰 발급, 최대 5회 재시도)
         id: auth
         run: |
-          RESP=$(curl -sf -X POST "${{ secrets.BACKEND_URL }}/api/v1/auth/login" \
-            -H "Content-Type: application/json" \
-            -d "{\"username\":\"${{ secrets.ADMIN_USERNAME }}\",\"password\":\"${{ secrets.ADMIN_PASSWORD }}\"}" \
-            --max-time 15)
-          TOKEN=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+          TOKEN=""
+          for attempt in 1 2 3 4 5; do
+            RESP=$(curl -s -X POST "${{ secrets.BACKEND_URL }}/api/v1/auth/login" \
+              -H "Content-Type: application/json" \
+              -d "{\"username\":\"${{ secrets.ADMIN_USERNAME }}\",\"password\":\"${{ secrets.ADMIN_PASSWORD }}\"}" \
+              --max-time 20)
+            TOKEN=$(echo "$RESP" | python3 -c \
+              "import sys,json; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null || echo "")
+            if [ -n "$TOKEN" ]; then
+              echo "  로그인 성공 (시도 $attempt)"
+              break
+            fi
+            echo "  시도 $attempt 실패 (응답: ${RESP:0:100})"
+            [ "$attempt" != "5" ] && sleep 30
+          done
+          if [ -z "$TOKEN" ]; then
+            echo "로그인 최종 실패 — 서버 상태 확인 필요"
+            exit 1
+          fi
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
-          echo "로그인 성공"
 
       - name: 수집 전 대전 공고 수 기록
         id: before
         run: |
-          TOTAL=$(curl -sf "${{ secrets.BACKEND_URL }}/api/v1/bids?region_id=6&size=1" \
+          TOTAL=$(curl -s "${{ secrets.BACKEND_URL }}/api/v1/bids?region_id=6&size=1" \
             -H "Authorization: Bearer ${{ steps.auth.outputs.token }}" \
             --max-time 15 | python3 -c "import sys,json; print(json.load(sys.stdin).get('total',0))" 2>/dev/null || echo "0")
           echo "total=$TOTAL" >> $GITHUB_OUTPUT
@@ -59,40 +73,51 @@ jobs:
           PAGES="${{ github.event.inputs.max_pages || '30' }}"
           REGION_ENC=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$REGION'))")
           echo "수집 시작: 지역=$REGION, 페이지=$PAGES"
-          RESP=$(curl -sf -X POST \
-            "${{ secrets.BACKEND_URL }}/api/v1/admin/inpo21c/collect-notices?region=${REGION_ENC}&max_pages=${PAGES}" \
-            -H "Authorization: Bearer ${{ steps.auth.outputs.token }}" \
-            --max-time 600)
+
+          for attempt in 1 2; do
+            RESP=$(curl -s -X POST \
+              "${{ secrets.BACKEND_URL }}/api/v1/admin/inpo21c/collect-notices?region=${REGION_ENC}&max_pages=${PAGES}" \
+              -H "Authorization: Bearer ${{ steps.auth.outputs.token }}" \
+              --max-time 600)
+            HTTP_OK=$(echo "$RESP" | python3 -c \
+              "import sys,json; d=json.load(sys.stdin); print('yes' if 'result' in d else 'no')" 2>/dev/null || echo "no")
+            if [ "$HTTP_OK" = "yes" ]; then
+              break
+            fi
+            echo "  수집 시도 $attempt 실패 (응답: ${RESP:0:200})"
+            [ "$attempt" = "1" ] && echo "  30초 후 재시도..." && sleep 30
+          done
+
           echo "수집 완료:"
           echo "$RESP" | python3 -c "
-import sys, json
-r = json.load(sys.stdin)
-res = r.get('result', {})
-sync = res.get('sync', {})
-print(f'  신규 수집: {res.get(\"notices\",0)}건 / 스킵: {res.get(\"skipped\",0)}건')
-print(f'  INSERT: {sync.get(\"inserted_new\",\"N/A\")}건 신규 bids 추가')
-print(f'  region_id 동기화: {sync.get(\"region_id_from_notices\",0)}건')
-if sync.get(\"insert_error\"):
-    print(f'  INSERT 오류: {sync[\"insert_error\"][:100]}')
-" 2>/dev/null || echo "응답 파싱 실패: $RESP"
+          import sys, json
+          r = json.load(sys.stdin)
+          res = r.get('result', {})
+          sync = res.get('sync', {})
+          print(f'  신규 수집: {res.get(\"notices\",0)}건 / 스킵: {res.get(\"skipped\",0)}건')
+          print(f'  INSERT: {sync.get(\"inserted_new\",\"N/A\")}건 신규 bids 추가')
+          print(f'  region_id 동기화: {sync.get(\"region_id_from_notices\",0)}건')
+          if sync.get(\"insert_error\"):
+              print(f'  INSERT 오류: {sync[\"insert_error\"][:100]}')
+          " 2>/dev/null || echo "응답 파싱 실패: ${RESP:0:300}"
 
       - name: 수집 결과 확인
         run: |
           TOKEN="${{ steps.auth.outputs.token }}"
           BEFORE="${{ steps.before.outputs.total }}"
 
-          AFTER=$(curl -sf "${{ secrets.BACKEND_URL }}/api/v1/bids?region_id=6&size=1" \
+          AFTER=$(curl -s "${{ secrets.BACKEND_URL }}/api/v1/bids?region_id=6&size=1" \
             -H "Authorization: Bearer $TOKEN" --max-time 15 \
             | python3 -c "import sys,json; print(json.load(sys.stdin).get('total',0))" 2>/dev/null || echo "0")
 
-          LATEST_LOG=$(curl -sf "${{ secrets.BACKEND_URL }}/api/v1/admin/collection-logs?limit=3" \
+          LATEST_LOG=$(curl -s "${{ secrets.BACKEND_URL }}/api/v1/admin/collection-logs?limit=3" \
             -H "Authorization: Bearer $TOKEN" --max-time 15 2>/dev/null | \
             python3 -c "
-import sys, json
-logs = json.load(sys.stdin)
-for l in logs[:3]:
-    print(l['collect_type'], l['collected_at'][:19], 'ok='+str(l['success_count']))
-" 2>/dev/null || echo "로그 조회 실패")
+          import sys, json
+          logs = json.load(sys.stdin)
+          for l in logs[:3]:
+              print(l['collect_type'], l['collected_at'][:19], 'ok='+str(l['success_count']))
+          " 2>/dev/null || echo "로그 조회 실패")
 
           echo "======================================="
           echo "수집 전 대전 공고: $BEFORE 건"
