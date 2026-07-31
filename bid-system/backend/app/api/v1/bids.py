@@ -8,7 +8,7 @@ from ...models import User, Agency, Industry, Region, Bid
 from ...schemas import BidCreate, BidResultCreate, BookmarkResponse, OpportunityScoreResponse, BidRecommendItem, JointPartnersResponse, JointSimRequest, JointSimResponse, FinalRecommendResponse, BestRateResponse
 from ...services import BidService, BookmarkService, get_active_industry_ids, OpportunityScoreService, JointQualService, JointSimulateService, FinalRecommendService, InpoParticipantService, RivalRadarService, ActualWinZoneService, HotZoneService, BestRateService
 from ...common.security import get_current_user
-from ...common.cache import get_redis, cache_get, cache_set
+from ...common.cache import local_cache_get, local_cache_set
 
 router = APIRouter(prefix="/bids", tags=["입찰"])
 svc = BidService()
@@ -48,9 +48,7 @@ def get_meta(db: Session = Depends(get_db), _: User = Depends(get_current_user))
     from ...common import agency_cache as _ac
     from sqlalchemy import text as _t
 
-    from ...common.cache import local_cache_get, local_cache_set
-    rc = get_redis()
-    cached = cache_get(rc, "bids:meta") or local_cache_get("bids:meta")
+    cached = local_cache_get("bids:meta")
     if cached is not None:
         return cached
 
@@ -79,7 +77,6 @@ def get_meta(db: Session = Depends(get_db), _: User = Depends(get_current_user))
                for r in db.execute(_t("SELECT id, name FROM regions ORDER BY name")).fetchall()]
 
     result = {"agencies": agencies, "industries": industries, "regions": regions}
-    cache_set(rc, "bids:meta", result, ttl=600)
     local_cache_set("bids:meta", result, ttl=600)
     return result
 
@@ -191,15 +188,14 @@ def recommended_bids(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """AI 추천 — 사용자별 Redis 120초 캐시."""
-    rc = get_redis()
+    """AI 추천 — 사용자별 120초 캐시."""
     cache_key = f"bids:recommended:{user.id}:{limit}"
-    cached = cache_get(rc, cache_key)
+    cached = local_cache_get(cache_key)
     if cached is not None:
         return cached
     result = OpportunityScoreService(db).get_top_recommended(user.id, limit)
     serializable = [item.model_dump() if hasattr(item, "model_dump") else item for item in result]
-    cache_set(rc, cache_key, serializable, ttl=120)
+    local_cache_set(cache_key, serializable, ttl=120)
     return result
 
 

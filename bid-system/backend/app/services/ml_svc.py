@@ -258,9 +258,8 @@ class OpportunityScoreService:
 
         results.sort(key=lambda x: (x["score"] or 0), reverse=True)
 
-        # NO-GO 사전 체크 — Redis 캐시 hit 시 즉시, miss 시 neutral 반환 후 백그라운드 계산
-        from ..common.cache import get_redis, cache_get
-        rc = get_redis()
+        # NO-GO 사전 체크 — 캐시 hit 시 즉시, miss 시 neutral 반환 후 백그라운드 계산
+        from ..common.cache import local_cache_get
         pool = results[: limit * 3]
         filtered = []
         bg_targets = []  # 캐시 미스 항목 → 백그라운드 계산
@@ -268,7 +267,7 @@ class OpportunityScoreService:
         for item in pool:
             aid, iid, amt = item["_agency_id"], item["_industry_id"], (item["base_amount"] or 0)
             ck = f"go_check:{aid}:{iid}:{amt // 50_000_000}"
-            cached_go = cache_get(rc, ck)
+            cached_go = local_cache_get(ck)
             if cached_go is not None:
                 quick = cached_go
             else:
@@ -315,12 +314,11 @@ class OpportunityScoreService:
     ) -> str:
         """
         win_prob_model 기반 GO/PASS 사전 판정.
-        결과를 Redis 1시간 캐시 — pool 15건 루프 호출 시 중복 계산 방지.
+        결과를 1시간 캐시 — pool 15건 루프 호출 시 중복 계산 방지.
         """
-        from ..common.cache import get_redis, cache_get, cache_set
-        rc = get_redis()
+        from ..common.cache import local_cache_get, local_cache_set
         cache_key = f"go_check:{agency_id}:{industry_id}:{base_amount // 50_000_000}"
-        cached = cache_get(rc, cache_key)
+        cached = local_cache_get(cache_key)
         if cached is not None:
             return cached
 
@@ -353,7 +351,7 @@ class OpportunityScoreService:
                 wp = max(0.0, float(wp))
 
                 if wp < 0.15:
-                    cache_set(rc, cache_key, "pass", ttl=3600)
+                    local_cache_set(cache_key, "pass", ttl=3600)
                     return "pass"
                 elif wp >= 0.30:
                     go_score += 0.20
@@ -419,7 +417,7 @@ class OpportunityScoreService:
         else:
             verdict = "neutral"
 
-        cache_set(rc, cache_key, verdict, ttl=3600)
+        local_cache_set(cache_key, verdict, ttl=3600)
         return verdict
 
     def _competition_score(self, bid: "Bid") -> dict:

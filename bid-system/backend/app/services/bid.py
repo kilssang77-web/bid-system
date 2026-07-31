@@ -256,13 +256,12 @@ class BidService:
         return results
 
     def get_keyword_matches(self, db: Session) -> list:
-        """활성 키워드별 매칭 공고 수 + 최근 공고 5건 반환 — Redis 180초 캐시."""
+        """활성 키워드별 매칭 공고 수 + 최근 공고 5건 반환 — 180초 캐시."""
         from ..models import WatchKeyword as KW
-        from ..common.cache import get_redis, cache_get, cache_set
+        from ..common.cache import local_cache_get, local_cache_set
 
-        rc = get_redis()
         cache_key = "bids:keyword_matches"
-        cached = cache_get(rc, cache_key)
+        cached = local_cache_get(cache_key)
         if cached is not None:
             return cached
 
@@ -331,5 +330,5 @@ class BidService:
                 ],
             })
 
-        cache_set(rc, cache_key, result, ttl=180)
+        local_cache_set(cache_key, result, ttl=180)
         return result
