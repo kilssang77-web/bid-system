@@ -1,40 +1,35 @@
 """
-Simple Redis-backed cache helpers.
+캐시 헬퍼.
 
-Usage:
-    redis_client = get_redis()   # None if Redis unavailable
-    val = await redis_get(rc, key)
-    await redis_set(rc, key, value, ttl=60)
+- local_cache_get / local_cache_set / local_cache_delete : 프로세스 내 메모리 캐시 (주 사용)
+- get_redis / cache_get / cache_set : Redis 캐시 (redis 패키지 미설치 시 자동 비활성화)
 """
 import json
 import logging
 from typing import Any
 
-import redis as _redis
-
 from ..config import get_settings
 
 logger = logging.getLogger(__name__)
-_redis_client: "_redis.Redis | None" = None
+_redis_client: "Any | None" = None
 _redis_init_done = False
-
-
 _redis_last_attempt: "float" = 0.0
 _REDIS_RETRY_SEC = 120  # 실패 후 2분마다 재시도
 
-def get_redis() -> "_redis.Redis | None":
+
+def get_redis() -> "Any | None":
+    """Redis 클라이언트 반환. redis 패키지 미설치 또는 연결 불가 시 None."""
     global _redis_client, _redis_init_done, _redis_last_attempt
     import time as _t
-    # 연결 성공 상태면 즉시 반환
     if _redis_init_done and _redis_client is not None:
         return _redis_client
-    # 연결 실패 상태: 2분마다 재시도
     now = _t.monotonic()
     if _redis_init_done and (now - _redis_last_attempt) < _REDIS_RETRY_SEC:
         return None
     _redis_init_done = True
     _redis_last_attempt = now
     try:
+        import redis as _redis  # lazy import — redis 패키지 없어도 모듈 로드 가능
         settings = get_settings()
         rc = _redis.from_url(
             settings.redis_url,
@@ -45,6 +40,9 @@ def get_redis() -> "_redis.Redis | None":
         rc.ping()
         _redis_client = rc
         logger.info("Redis 연결 완료")
+    except ImportError:
+        logger.info("redis 패키지 미설치 — Redis 캐시 비활성화 (local_cache 사용 중)")
+        _redis_client = None
     except Exception as e:
         logger.warning("Redis 연결 실패 — 캐시 비활성화: %s", e)
         _redis_client = None
