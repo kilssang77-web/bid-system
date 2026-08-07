@@ -99,8 +99,8 @@ export default function ServiceManualModal({ open, onClose }: Props) {
                 </div>
                 <div className="text-slate-400">↕ API 통신</div>
                 <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-center">
-                  ⚙️ <strong>Render.com</strong><br/>
-                  <span className="text-xs text-slate-500">bid-system-backend-ssu1.onrender.com (서버 담당)</span>
+                  ⚙️ <strong>Fly.io</strong><br/>
+                  <span className="text-xs text-slate-500">bid-system-backend.fly.dev (서버 담당)</span>
                 </div>
                 <div className="flex gap-3 mt-1 flex-wrap justify-center">
                   <div className="flex flex-col items-center gap-1">
@@ -175,13 +175,13 @@ export default function ServiceManualModal({ open, onClose }: Props) {
 
               <div className="rounded-lg border border-slate-200 overflow-hidden">
                 <div className="bg-green-700 text-white px-3 py-2 text-xs font-semibold flex items-center gap-2">
-                  <Server className="h-3.5 w-3.5" /> Render.com — 서버(백엔드) 실행
+                  <Server className="h-3.5 w-3.5" /> Fly.io — 서버(백엔드) 실행
                 </div>
                 <div className="px-3 py-2 text-sm space-y-1">
                   <p>• AI 분석, 데이터 조회, 로그인 처리 등 모든 계산을 담당하는 서버입니다</p>
                   <p>• Python(FastAPI) 서버를 클라우드에서 실행해 줍니다</p>
-                  <p className="text-slate-500">• 주소: https://bid-system-backend-ssu1.onrender.com</p>
-                  <p className="text-amber-700 font-medium">• 무료 (월 750시간, <strong>15분 미사용 시 절전모드</strong> → 첫 접속 30~60초 대기)</p>
+                  <p className="text-slate-500">• 주소: https://bid-system-backend.fly.dev</p>
+                  <p className="text-emerald-700 font-medium">• 무료 (shared-cpu-1x, 256MB RAM, <strong>절전모드 없음</strong> — 항상 실행 상태)</p>
                 </div>
               </div>
 
@@ -193,19 +193,19 @@ export default function ServiceManualModal({ open, onClose }: Props) {
                   <p>• 공고 정보, 낙찰 이력, 투찰 기록 등 모든 데이터를 저장하는 "디지털 창고"입니다</p>
                   <p>• PostgreSQL과 호환되는 분산형 SQL 데이터베이스입니다</p>
                   <p className="text-slate-500">• 클러스터: ap-southeast-1(싱가포르) / 데이터베이스: bid_system</p>
-                  <p className="text-emerald-700 font-medium">• 무료 (저장 5GB, 월 500만 RU — 현재 사용량 여유 충분)</p>
+                  <p className="text-emerald-700 font-medium">• 무료 (저장 10GB, 월 500만 RU — 현재 사용량 여유 충분)</p>
                 </div>
               </div>
 
               <div className="rounded-lg border border-slate-200 overflow-hidden">
                 <div className="bg-red-700 text-white px-3 py-2 text-xs font-semibold flex items-center gap-2">
-                  <Zap className="h-3.5 w-3.5" /> Upstash Redis — 캐시 (임시 고속 저장소)
+                  <Zap className="h-3.5 w-3.5" /> 인메모리 캐시 — 고속 응답 (local_cache)
                 </div>
                 <div className="px-3 py-2 text-sm space-y-1">
                   <p>• 자주 요청되는 데이터를 빠르게 제공하기 위한 "앞 창구" 역할을 합니다</p>
-                  <p>• DB까지 가지 않고 Redis에서 바로 응답 → 응답속도 50~80% 단축</p>
-                  <p className="text-slate-500">• 인스턴스명: bid-redis / 포트: 6379 / TLS 활성화</p>
-                  <p className="text-emerald-700 font-medium">• 무료 (일 10,000 명령, 256MB)</p>
+                  <p>• 서버 프로세스 내 메모리에 캐시 → 외부 의존성 없이 응답속도 단축</p>
+                  <p className="text-slate-500">• 방식: Python 딕셔너리 기반 TTL 캐시 (외부 Redis 미사용)</p>
+                  <p className="text-emerald-700 font-medium">• 무료 (추가 비용 없음, 서버 재시작 시 캐시 초기화)</p>
                 </div>
               </div>
 
@@ -214,9 +214,9 @@ export default function ServiceManualModal({ open, onClose }: Props) {
                   <Radio className="h-3.5 w-3.5" /> UptimeRobot — 서버 절전 방지 모니터
                 </div>
                 <div className="px-3 py-2 text-sm space-y-1">
-                  <p>• 5분마다 서버에 핑(ping)을 보내 절전 모드 진입을 방지합니다</p>
-                  <p>• Render 무료 플랜의 "15분 미사용 절전" 문제를 완전히 해결합니다</p>
-                  <p className="text-slate-500">• 모니터 URL: https://bid-system-backend-ssu1.onrender.com/api/health</p>
+                  <p>• 5분마다 서버에 핑(ping)을 보내 서버 상태를 모니터링합니다</p>
+                  <p>• Fly.io는 절전모드 없이 항상 실행되므로 주로 장애 감지 용도로 활용합니다</p>
+                  <p className="text-slate-500">• 모니터 URL: https://bid-system-backend.fly.dev/api/health</p>
                   <p className="text-emerald-700 font-medium">• 무료 (모니터 50개, 5분 간격)</p>
                 </div>
               </div>
@@ -227,9 +227,9 @@ export default function ServiceManualModal({ open, onClose }: Props) {
                 </div>
                 <div className="px-3 py-2 text-sm space-y-1">
                   <p>• 코드 배포 후 ML 재학습, 주간 재학습, 월간 점검을 자동으로 실행합니다</p>
-                  <p>• UptimeRobot 장애 시 14분 간격 백업 핑도 담당합니다</p>
+                  <p>• 30분 간격 keep-alive 핑으로 서버 상태 확인 및 Fly.io 머신 유지</p>
                   <p className="text-slate-500">• 워크플로 4개: keep-alive, post-deploy-retrain, weekly-maintenance, monthly-health-check</p>
-                  <p className="text-emerald-700 font-medium">• 무료 (월 2,000분 — 현재 사용량 매우 여유)</p>
+                  <p className="text-emerald-700 font-medium">• 무료 (월 2,000분 — 현재 사용량 약 1,600분 이내)</p>
                 </div>
               </div>
 
@@ -265,26 +265,24 @@ export default function ServiceManualModal({ open, onClose }: Props) {
               <InfoBox type="warn">CockroachDB는 일반 PostgreSQL과 SQL 문법이 조금 다릅니다. 특히 <strong>PERCENTILE_CONT</strong> 함수, 날짜 계산(INTERVAL), 나누기 연산(float) 등에서 차이가 있어 별도 처리가 필요했습니다.</InfoBox>
             </Step>
 
-            <Step num={3} title="Upstash Redis 설정">
-              <p>① upstash.com 접속 → 무료 계정 생성</p>
-              <p>② 새 Redis 인스턴스 생성: 이름 <code className="bg-slate-100 px-1 rounded">bid-redis</code></p>
-              <p>③ 연결 주소 복사: <code className="bg-slate-100 px-1 rounded">rediss://default:비밀번호@도메인:6379</code></p>
-              <p>④ Render 환경변수 REDIS_URL에 등록</p>
-              <InfoBox type="warn"><strong>포트 주의:</strong> Upstash 무료 플랜은 포트 <strong>6379</strong>를 사용합니다 (6380 아님). REDIS_URL에 :6379가 맞는지 반드시 확인하세요.</InfoBox>
+            <Step num={3} title="캐시 설정 (인메모리, 외부 Redis 불필요)">
+              <p>• 현재 시스템은 외부 Redis 없이 서버 내 메모리 캐시(local_cache)를 사용합니다</p>
+              <p>• 별도 설정 불필요 — 서버 시작 시 자동으로 활성화됩니다</p>
+              <InfoBox type="info"><strong>참고:</strong> 과거에는 Upstash Redis를 사용했으나 현재는 서버 내 인메모리 캐시로 전환하여 외부 의존성을 제거했습니다. 서버 재시작 시 캐시가 초기화되지만 성능에 큰 영향은 없습니다.</InfoBox>
             </Step>
 
-            <Step num={4} title="Render.com 백엔드 서버 배포">
-              <p>① render.com 접속 → 무료 계정 생성</p>
-              <p>② New → Web Service → GitHub 저장소 연결</p>
-              <p>③ 배포 설정:</p>
+            <Step num={4} title="Fly.io 백엔드 서버 배포">
+              <p>① fly.io 접속 → 무료 계정 생성 (신용카드 불필요)</p>
+              <p>② flyctl CLI 설치: <code className="bg-slate-100 px-1 rounded">iwr https://fly.io/install.ps1 -useb | iex</code> (Windows)</p>
+              <p>③ 로그인: <code className="bg-slate-100 px-1 rounded">flyctl auth login</code></p>
+              <p>④ bid-system/backend 폴더에서 배포:</p>
               <div className="bg-slate-50 rounded p-2 mt-1 mb-1 font-mono text-xs space-y-0.5">
-                <p>Root Directory: bid-system/backend</p>
-                <p>Build Command: pip install -r requirements.txt</p>
-                <p>Start Command: uvicorn app.main:app --host 0.0.0.0 --port $PORT</p>
+                <p>cd bid-system/backend</p>
+                <p>flyctl deploy</p>
               </div>
-              <p>④ 환경변수(Environment Variables) 설정 (아래 환경변수 목록 참조)</p>
-              <p>⑤ 배포 완료 확인: <code className="bg-slate-100 px-1 rounded">https://bid-system-backend-ssu1.onrender.com/health</code></p>
-              <InfoBox type="ok">배포가 완료되면 Render 대시보드에서 "Live" 녹색 표시가 나타납니다.</InfoBox>
+              <p>⑤ 환경변수(Secrets) 등록: <code className="bg-slate-100 px-1 rounded">flyctl secrets set DATABASE_URL="..." SECRET_KEY="..."</code></p>
+              <p>⑥ 배포 완료 확인: <code className="bg-slate-100 px-1 rounded">https://bid-system-backend.fly.dev/api/health</code></p>
+              <InfoBox type="ok">배포가 완료되면 <code>{"status":"ok"}</code> 응답이 반환됩니다. Fly.io는 절전모드 없이 항상 실행됩니다.</InfoBox>
             </Step>
 
             <Step num={5} title="Cloudflare Pages 프론트엔드 배포">
@@ -296,20 +294,20 @@ export default function ServiceManualModal({ open, onClose }: Props) {
                 <p>Build Command: npm run build</p>
                 <p>Output Directory: dist</p>
               </div>
-              <p>④ 환경변수 추가: <code className="bg-slate-100 px-1 rounded">VITE_API_BASE_URL = https://bid-system-backend-ssu1.onrender.com/api</code></p>
+              <p>④ 환경변수 추가: <code className="bg-slate-100 px-1 rounded">VITE_API_BASE_URL = https://bid-system-backend.fly.dev/api</code></p>
               <p>⑤ 배포 완료: <code className="bg-slate-100 px-1 rounded">https://bid-system.pages.dev</code> 접속 확인</p>
               <InfoBox type="info">코드 변경 후 GitHub에 올리면 Cloudflare Pages가 자동으로 2~3분 내 새 버전을 배포합니다.</InfoBox>
             </Step>
 
             <Step num={6} title="최초 관리자 계정 생성 및 로그인 확인">
-              <p>① Render 환경변수에 설정:</p>
+              <p>① Fly.io Secrets에 설정:</p>
               <div className="bg-slate-50 rounded p-2 mt-1 mb-1 font-mono text-xs space-y-0.5">
-                <p>FIRST_ADMIN_EMAIL=관리자이메일</p>
-                <p>FIRST_ADMIN_PASSWORD=비밀번호</p>
+                <p>flyctl secrets set FIRST_ADMIN_EMAIL=관리자이메일</p>
+                <p>flyctl secrets set FIRST_ADMIN_PASSWORD=비밀번호</p>
               </div>
               <p>② 서버 재시작 시 자동으로 관리자 계정 생성</p>
               <p>③ bid-system.pages.dev/login 접속 → 이메일/비밀번호 로그인</p>
-              <InfoBox type="warn">비밀번호를 잊었다면 Render 대시보드 → Environment → FIRST_ADMIN_PASSWORD 값 수정 후 Manual Deploy(재배포)하면 계정이 갱신됩니다.</InfoBox>
+              <InfoBox type="warn">비밀번호를 잊었다면 <code>flyctl secrets set FIRST_ADMIN_PASSWORD=새비밀번호</code> 후 <code>flyctl deploy</code>로 재배포하면 계정이 갱신됩니다.</InfoBox>
             </Step>
 
             <Step num={7} title="ML 모델 학습">
@@ -481,9 +479,9 @@ export default function ServiceManualModal({ open, onClose }: Props) {
                 </p>
                 <div className="text-sm text-slate-600 space-y-0.5">
                   <p>• <strong>GitHub:</strong> github.com → kilssang77-web 계정</p>
-                  <p>• <strong>Render:</strong> render.com → kil0410@a2m.co.kr 계정</p>
+                  <p>• <strong>Fly.io:</strong> fly.io → kil0410@a2m.co.kr 계정</p>
                   <p>• <strong>CockroachDB:</strong> cockroachlabs.com → 동일 이메일</p>
-                  <p>• <strong>Upstash:</strong> upstash.com → 동일 이메일</p>
+                  <p>• <strong>Upstash:</strong> upstash.com → 동일 이메일 (현재 미사용)</p>
                   <p>• <strong>Cloudflare:</strong> cloudflare.com → 동일 이메일</p>
                   <p>• <strong>UptimeRobot:</strong> uptimerobot.com → 동일 이메일</p>
                 </div>
@@ -495,9 +493,9 @@ export default function ServiceManualModal({ open, onClose }: Props) {
           <Section title="관리 콘솔 빠른 접속" icon={Globe} color="border-slate-300 text-slate-600">
             <div className="grid grid-cols-2 gap-2 text-sm">
               {[
-                { name: 'Render (서버 관리)', url: 'https://dashboard.render.com', desc: '배포·로그·환경변수' },
+                { name: 'Fly.io (서버 관리)', url: 'https://fly.io/dashboard', desc: '배포·로그·Secrets 관리' },
                 { name: 'CockroachDB (DB 관리)', url: 'https://cockroachlabs.cloud', desc: '데이터·쿼리·사용량' },
-                { name: 'Upstash (Redis 관리)', url: 'https://console.upstash.com', desc: '캐시 모니터링' },
+                { name: 'Upstash (Redis — 미사용)', url: 'https://console.upstash.com', desc: '캐시 모니터링 (현재 미사용)' },
                 { name: 'Cloudflare (웹사이트)', url: 'https://dash.cloudflare.com', desc: '배포·도메인·트래픽' },
                 { name: 'GitHub (소스코드)', url: 'https://github.com/kilssang77-web/atom-harness-g2b', desc: '코드·커밋 이력' },
                 { name: 'GitHub Actions (자동화)', url: 'https://github.com/kilssang77-web/atom-harness-g2b/actions', desc: '워크플로 실행 현황·로그' },
