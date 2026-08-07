@@ -18,7 +18,7 @@ on:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     name: inpo21c 지역 공고 수집
 
     steps:
@@ -78,7 +78,7 @@ jobs:
             RESP=$(curl -s -X POST \
               "${{ secrets.BACKEND_URL }}/api/v1/admin/inpo21c/collect-notices?region=${REGION_ENC}&max_pages=${PAGES}" \
               -H "Authorization: Bearer ${{ steps.auth.outputs.token }}" \
-              --max-time 600)
+              --max-time 300)
             HTTP_OK=$(echo "$RESP" | python3 -c \
               "import sys,json; d=json.load(sys.stdin); print('yes' if 'result' in d else 'no')" 2>/dev/null || echo "no")
             if [ "$HTTP_OK" = "yes" ]; then

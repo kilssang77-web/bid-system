@@ -15,8 +15,8 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Wait for Render to deploy (8 minutes)
-        run: sleep 480
+      - name: Wait for Render to deploy (6 minutes)
+        run: sleep 360
 
       - name: Wait for backend to be healthy
         run: |
