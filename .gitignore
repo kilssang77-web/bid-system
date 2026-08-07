@@ -27,6 +27,7 @@
 .env.*
 !.env.example
 !.env.*.example
+!bid-system/frontend/.env.production
 
 # =============================================================================
 # JAVA / SPRING BOOT
