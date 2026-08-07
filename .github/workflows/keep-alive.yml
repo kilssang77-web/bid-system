@@ -1,7 +1,6 @@
 name: Keep Backend Alive
 
-# Render 무료 플랜: 15분 비활성 시 절전 모드
-# UptimeRobot(5분 간격)이 주 역할 — 이 워크플로는 UptimeRobot 장애 시 백업
+# Fly.io: 절전모드 없음 (auto_stop_machines=false) — 이 워크플로는 서버 상태 확인 겸 UptimeRobot 보조용
 # 30분 간격으로 실행 → 월 ~1,440분 (무료 한도 2,000분 이내)
 
 on:
@@ -23,5 +22,5 @@ jobs:
           if [ "$STATUS" = "200" ]; then
             echo "Backend is alive."
           else
-            echo "::warning::Backend returned $STATUS (may be cold-starting — UptimeRobot handles primary keep-alive)"
+            echo "::warning::Backend returned $STATUS — Fly.io 머신 상태 확인 필요 (fly.io/dashboard)"
           fi
