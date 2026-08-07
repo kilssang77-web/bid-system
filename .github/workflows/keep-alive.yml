@@ -1,12 +1,12 @@
 name: Keep Backend Alive
 
 # Render 무료 플랜: 15분 비활성 시 절전 모드
-# GitHub Actions는 cron 지연이 있으므로 UptimeRobot(5분 간격)이 주 역할
-# 이 워크플로는 UptimeRobot 장애 시 백업 역할 (14분 간격 핑)
+# UptimeRobot(5분 간격)이 주 역할 — 이 워크플로는 UptimeRobot 장애 시 백업
+# 30분 간격으로 실행 → 월 ~1,440분 (무료 한도 2,000분 이내)
 
 on:
   schedule:
-    - cron: '*/14 * * * *'   # 14분마다
+    - cron: '*/30 * * * *'   # 30분마다 (월 ~1,440분, 무료 한도 이내)
   workflow_dispatch:          # 수동 실행
 
 jobs:
@@ -17,9 +17,11 @@ jobs:
       - name: Ping backend health
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 60 \
+            --max-time 55 \
             "${{ secrets.BACKEND_URL }}/api/health" || echo "000")
           echo "HTTP Status: $STATUS"
-          if [ "$STATUS" != "200" ]; then
-            echo "::warning::Backend returned $STATUS (may be cold-starting)"
+          if [ "$STATUS" = "200" ]; then
+            echo "Backend is alive."
+          else
+            echo "::warning::Backend returned $STATUS (may be cold-starting — UptimeRobot handles primary keep-alive)"
           fi
